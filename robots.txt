@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://yukio0.github.io/bakuhatsu-no-iwaba/sitemap.xml
