@@ -1,0 +1,122 @@
+:root {
+    --cell: 34px;
+    --gap: 4px;
+
+    /* ===== Theme (default: Light) ===== */
+    --border: #93a0b5;
+    --bg: #e9eef6;
+    --panel: #ffffff;
+    --text: #0b1220;
+    --muted: #0f172a;
+
+    --wall: #cbd5e1;
+    --flag: #b86a00;
+    --revealed: #ffffff;
+
+    --headerBorder: #e3e8f2;
+    --headerBg: linear-gradient(180deg, #ffffff, #f6f7fb);
+
+    --panelBorder: #b7c2d6;
+    --panelShadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+
+    --controlBg: #ffffff;
+    --controlBorder: #93a0b5;
+
+    --infoBg: #ffffff;
+    --infoBorder: #93a0b5;
+
+    --pillBg: #ffffff;
+    --pillBorder: #93a0b5;
+
+    --scrollerBg: #dde6f3;
+    --scrollerBorder: #b7c2d6;
+
+    --toolboxBg: #ffffff;
+    --toolboxBorder: #93a0b5;
+
+    --toolBtnBg: #f8fafc;
+    --toolBtnBorder: #93a0b5;
+
+    --currentToolPillBg: #ffffff;
+    --currentToolPillText: #1f2937;
+
+    --toastBg: #ffffff;
+    --toastBorder: #93a0b5;
+
+    --hoverBg: rgba(0, 0, 0, 0.06);
+
+    --flagCellBg: #fff2d6;
+    --flagCellBorder: #f1c27d;
+    --revealedBorder: #93a0b5;
+
+    --wallIcon: #0f172a;
+    --blankIcon: #0f172a;
+    --blankOpacity: 0.9;
+    --mineFlag: #ef4444;
+
+    --side: 460px;
+
+    --axisW: 28px;
+    --axisH: 22px;
+
+    --tipBg: #ffffff;
+    --tipBorder: #93a0b5;
+    --tipShadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+html[data-theme="dark"] {
+    --border: #cfcfcf;
+    --bg: #0f1115;
+    --panel: #161a22;
+    --text: #e7e7e7;
+    --muted: #a8a8a8;
+
+    --wall: #2a3242;
+    --flag: #ffcc66;
+    --revealed: #202634;
+
+    --headerBorder: #232a36;
+    --headerBg: linear-gradient(180deg, #121625, #0f1115);
+
+    --panelBorder: #232a36;
+    --panelShadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+
+    --controlBg: #0f1420;
+    --controlBorder: #2a3446;
+
+    --infoBg: #0f1420;
+    --infoBorder: #2a3446;
+
+    --pillBg: #0f1420;
+    --pillBorder: #2a3446;
+
+    --scrollerBg: #0b0e14;
+    --scrollerBorder: #232a36;
+
+    --toolboxBg: #0f1420;
+    --toolboxBorder: #2a3446;
+
+    --toolBtnBg: #0b0e14;
+    --toolBtnBorder: #2a3446;
+
+    --currentToolPillBg: #0b0e14;
+    --currentToolPillText: #cbd5e1;
+
+    --toastBg: #0f1420;
+    --toastBorder: #2a3446;
+
+    --hoverBg: rgba(255, 255, 255, 0.05);
+
+    --flagCellBg: #3a2f1b;
+    --flagCellBorder: #6a5430;
+    --revealedBorder: #3a4355;
+
+    --wallIcon: #b9c2d3;
+    --blankIcon: #9aa7bd;
+    --blankOpacity: 0.75;
+    --mineFlag: #ff4a4a;
+
+    --tipBg: #0f1420;
+    --tipBorder: #2a3446;
+    --tipShadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}

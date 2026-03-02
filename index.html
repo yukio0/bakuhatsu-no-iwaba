@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ja">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>風来のシレン5plus 爆発の岩場 攻略支援ツール</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+
+<body>
+  <header>
+    <div class="titleRow">
+      <h1>風来のシレン5plus 爆発の岩場 攻略支援ツール</h1>
+      <button class="themeToggle" id="themeToggle" type="button" aria-pressed="false">
+        🌙 ダークモードに変更
+      </button>
+      <a class="githubLink" href="https://github.com/yukio0/bakuhatsu-no-iwaba" target="_blank"
+        rel="noopener noreferrer">GitHub</a>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="aboutRow">
+      <div class="aboutWrap">
+        <span class="aboutTrigger" tabindex="0" role="button" aria-describedby="aboutTip">このツールについて</span>
+        <div class="aboutTip" id="aboutTip" role="tooltip" aria-hidden="true">
+          <div class="aboutTipBody">
+            <div>
+              このツールは「<a href="https://www.spike-chunsoft.co.jp/pages/shiren5plus/" target="_blank"
+                rel="noopener noreferrer">不思議のダンジョン 風来のシレン5plus フォーチュンタワーと運命のダイス</a>」に登場するダンジョン「<a
+                href="https://seesaawiki.jp/w/shiren5/d/%c7%fa%c8%af%a4%ce%b4%e4%be%ec" target="_blank"
+                rel="noopener noreferrer">爆発の岩場</a>」の非公式攻略支援ツールです。
+            </div>
+            <div>操作性の都合上、PCでの使用をおすすめします。</div>
+            <div class="aboutMuted">
+              バグの報告などは <a href="https://github.com/yukio0/bakuhatsu-no-iwaba" target="_blank"
+                rel="noopener noreferrer">GitHub</a> でお願いします。
+            </div>
+            <div>
+              本ツールは非公式であり、正確性や完全性を保証するものではありません。利用はご自身の責任で行ってください。
+            </div>
+            <div>
+              本ツールの利用または利用不能に起因して生じた損害について、作者は一切の責任を負いません。
+            </div>
+            <div>
+              また、予告なく内容の変更や公開停止を行う場合があります。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="row">
+        <label for="difficulty">難易度</label>
+        <select id="difficulty">
+          <option value="beginner" selected>初級</option>
+          <option value="intermediate">中級</option>
+          <option value="advanced">上級</option>
+        </select>
+      </div>
+      <div class="row">
+        <label for="inputMode">入力モード</label>
+        <select id="inputMode">
+          <option value="paint" selected>ペイント（ツール＋ドラッグ）</option>
+          <option value="cycle">サイクル（クリックで 壁→⚑→無地(0)→…）</option>
+        </select>
+      </div>
+
+      <div class="info" id="stageInfo"></div>
+
+      <div class="toolbox">
+        <div class="toolboxHead">
+          <div class="toolMeta" id="toolMeta">
+            <span class="currentToolPill" id="currentToolPill">現在：壁</span>
+          </div>
+        </div>
+
+        <div class="toolGrid" id="toolGrid"></div>
+        <div class="info opsInfo" id="opsInfo"></div>
+      </div>
+
+      <div class="btns">
+        <button id="btnReset">盤面リセット</button>
+      </div>
+    </section>
+
+    <section class="boardWrap">
+      <div class="legend">
+        <span class="pill"><span class="dot dot-wall"></span>壁</span>
+        <span class="pill"><span class="dot dot-flag"></span>旗（地雷）</span>
+        <span class="pill"><span class="dot dot-revealed"></span>床（数字/無地）</span>
+        <span class="pill"><span class="dot dot-safe"></span>安全確定</span>
+        <span class="pill"><span class="dot dot-mine"></span>地雷確定</span>
+        <span class="pill"><span class="dot dot-reco"></span>おすすめ（地雷可能性最低）</span>
+      </div>
+
+      <div class="boardScroller" id="boardScroller" aria-label="board scroller">
+        <div class="boardFrame" id="boardFrame">
+          <div class="axisY" id="axisY" aria-label="y axis"></div>
+          <div class="board" id="board" aria-label="board"></div>
+          <div class="axisCorner" aria-hidden="true"></div>
+          <div class="axisX" id="axisX" aria-label="x axis"></div>
+        </div>
+      </div>
+
+      <div class="boardSolveRow">
+        <button class="primary" id="btnSolve">推論</button>
+        <label class="autoSolve" title="ON: クリック時 or ドラッグ終了時に自動で推論します">
+          <input type="checkbox" id="autoSolve" checked />
+          自動推論
+        </label>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <div class="probTip" id="probTip" role="tooltip" aria-hidden="true"></div>
+  <script src="js/iwaba-constants.js" defer></script>
+  <script src="js/iwaba-utils.js" defer></script>
+  <script src="js/iwaba-solver.js" defer></script>
+  <script src="js/iwaba-view.js" defer></script>
+  <script src="js/iwaba-logic.js" defer></script>
+  <script src="js/iwaba-input.js" defer></script>
+  <script src="js/iwaba-app.js" defer></script>
+</body>
+
+</html>
