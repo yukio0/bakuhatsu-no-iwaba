@@ -240,7 +240,56 @@
     append(opsInfoEl, title, ul);
   }
 
-  function updateModeUI(ctx) {
+  
+  function setInputModeData(ctx) {
+    try {
+      const mode = ctx?.els?.inputModeEl?.value || "paint";
+      document.documentElement.dataset.inputMode = mode;
+    } catch (_) {
+    }
+  }
+
+  function syncResponsiveBoard(ctx) {
+    const root = document.documentElement;
+    const scroller = ctx?.els?.boardScrollerEl;
+    if (!root || !scroller) return;
+
+    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
+    const coarse = mm("(pointer: coarse)");
+    const small = mm("(max-width: 820px)");
+    const doFit = coarse || small;
+
+    if (!doFit) {
+      root.style.removeProperty("--cell");
+      root.style.removeProperty("--gap");
+      root.style.removeProperty("--axisW");
+      root.style.removeProperty("--axisH");
+      return;
+    }
+
+    root.style.setProperty("--gap", "2px");
+    root.style.setProperty("--axisW", "22px");
+    root.style.setProperty("--axisH", "18px");
+
+    const cs = getComputedStyle(scroller);
+    const padL = parseFloat(cs.paddingLeft) || 0;
+    const padR = parseFloat(cs.paddingRight) || 0;
+    const availW = scroller.clientWidth - padL - padR;
+
+    const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 2;
+    const axisW = parseFloat(getComputedStyle(root).getPropertyValue("--axisW")) || 22;
+    const cols = Math.max(1, Number(ctx?.state?.cols || 1));
+
+    const cellW = (availW - axisW - gap - (cols - 1) * gap) / cols;
+
+    if (!Number.isFinite(cellW)) return;
+
+    let cell = Math.floor(cellW);
+    cell = Math.max(12, Math.min(34, cell));
+    root.style.setProperty("--cell", `${cell}px`);
+  }
+
+function updateModeUI(ctx) {
     const { toolGridEl, toolMetaEl } = ctx.els;
     if (ctx.els.inputModeEl.value === "cycle") {
       toolGridEl.style.display = "none";
@@ -249,6 +298,9 @@
       toolGridEl.style.display = "";
       toolMetaEl.style.display = "";
     }
+
+    setInputModeData(ctx);
+    syncResponsiveBoard(ctx);
     renderOpsInfo(ctx);
   }
 
@@ -264,7 +316,6 @@
     const { grid } = ctx.state;
 
     hideProbTip(ctx);
-
     for (const el of boardEl.querySelectorAll(".cell")) {
       const hadCon = el.classList.contains("contradiction");
 
@@ -315,6 +366,8 @@
     hideToast(ctx);
     hideProbTip(ctx);
 
+    syncResponsiveBoard(ctx);
+
     boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
     clearEl(boardEl);
 
@@ -352,6 +405,7 @@
     syncSolveButtonWidth,
     clearSuggestVisualsOnly,
     applySuggestUI,
+    syncResponsiveBoard,
     renderBoard,
   };
 })();

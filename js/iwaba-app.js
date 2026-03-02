@@ -85,7 +85,12 @@
 
   IWABA.input.bind(ctx);
 
+  const syncResponsive = () => IWABA.view.syncResponsiveBoard(ctx);
+  window.addEventListener("resize", syncResponsive, { passive: true });
+  window.addEventListener("orientationchange", syncResponsive, { passive: true });
+
   requestAnimationFrame(() => {
+    syncResponsive();
     IWABA.view.syncSolveButtonWidth(ctx);
     if (ctx.els.autoSolveEl && ctx.els.autoSolveEl.checked) {
       IWABA.logic.solveDeterministic(ctx);

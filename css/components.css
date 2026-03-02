@@ -180,8 +180,13 @@ button.primary {
     border-radius: 14px;
     overflow: auto;
     max-width: 100%;
+    touch-action: pan-x pan-y pinch-zoom;
+}
+
+html[data-input-mode="paint"] .boardScroller {
     touch-action: none;
 }
+
 
 .boardSolveRow {
     width: min(860px, 100%);
@@ -254,7 +259,7 @@ button.primary {
     user-select: none;
     color: var(--muted);
     font-weight: 800;
-    font-size: 12px;
+    font-size: clamp(9px, calc(var(--cell) * 0.35), 12px);
     display: grid;
     place-items: center;
     line-height: 1;
@@ -263,6 +268,7 @@ button.primary {
         "Liberation Mono", "Noto Sans JP", sans-serif;
     opacity: 0.98;
 }
+
 
 .axisCellY {
     width: var(--axisW);
@@ -279,23 +285,34 @@ button.primary {
     grid-row: 1;
     display: grid;
     gap: var(--gap);
+    touch-action: pan-x pan-y pinch-zoom;
+}
+
+html[data-input-mode="paint"] .board {
     touch-action: none;
 }
+
 
 .cell {
     width: var(--cell);
     height: var(--cell);
-    border-radius: 8px;
+    border-radius: clamp(4px, calc(var(--cell) * 0.24), 8px);
     border: 1px solid var(--border);
     display: grid;
     place-items: center;
     font-weight: 800;
-    font-size: 15px;
+    font-size: clamp(8px, calc(var(--cell) * 0.44), 15px);
     user-select: none;
     cursor: pointer;
     background: var(--wall);
     color: var(--text);
+    touch-action: pan-x pan-y pinch-zoom;
 }
+
+html[data-input-mode="paint"] .cell {
+    touch-action: none;
+}
+
 
 .cell[data-state="wall"] {
     background: var(--wall);
@@ -515,6 +532,50 @@ html[data-theme="dark"] .num8 {
     }
 }
 
+
+@media (max-width: 620px) {
+    .wrap {
+        padding: 10px;
+        gap: 12px;
+    }
+
+    .row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        align-items: start;
+    }
+
+    .btns {
+        grid-template-columns: 1fr;
+    }
+
+    .toolGrid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .boardScroller {
+        padding: 8px;
+    }
+}
+
+@media (max-width: 420px) {
+    header {
+        padding: 12px 12px;
+    }
+
+    header h1 {
+        font-size: 15px;
+    }
+
+    .wrap {
+        padding: 10px 12px;
+    }
+
+    .toolGrid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
 .toast {
     width: min(860px, 100%);
     max-width: 100%;
@@ -707,7 +768,6 @@ html[data-theme="dark"] .num8 {
     }
 }
 
-/* ===== Header GitHub link ===== */
 header .githubLink {
     display: inline-flex;
     align-items: center;
@@ -742,7 +802,6 @@ html[data-theme="dark"] header .githubLink:hover {
     filter: brightness(1.05);
 }
 
-/* ===== About tooltip ===== */
 .aboutRow {
     grid-column: 1 / -1;
     display: flex;
