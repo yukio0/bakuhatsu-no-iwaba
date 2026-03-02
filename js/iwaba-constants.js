@@ -1,5 +1,5 @@
 /* iwaba-constants.js
- * Shared constants for 爆発の岩場ツール
+ * Shared constants for bakuhatsu-no-iwaba.
  */
 (() => {
   window.IWABA = window.IWABA || {};
