@@ -218,7 +218,7 @@
 
     const isCycle = inputModeEl.value === "cycle";
 
-    const title = makeEl("b", null, isCycle ? "操作（サイクル）" : "操作（ペイント）");
+    const title = makeEl("b", null, isCycle ? "操作方法（サイクル）" : "操作方法（ペイント）");
     const ul = makeEl("ul", "opsList");
 
     const items = isCycle
@@ -232,6 +232,7 @@
         "左ドラッグ：選択タイルで塗る",
         "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
         "ホイール, カーソルキー（↑↓←→）：タイル切替",
+        "キーボード：0-8で床／Fで⚑／W or ?で壁",
         "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
       ];
 
