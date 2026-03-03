@@ -97,6 +97,8 @@
       cell.addEventListener("pointerdown", (e) => {
         if (!isCycleMode(ctx)) return;
         if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+        if (!IWABA.logic.isProbTipEligibleForCell(ctx, cell)) return;
+        if (e.cancelable) e.preventDefault();
         clearLongPressTimer(cell);
 
         cell.dataset.longPressStartX = String(e.clientX);
@@ -146,6 +148,11 @@
       cell.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         if (ctx.els.inputModeEl.value !== "cycle") return;
+        if (cell.dataset.longPressProb === "1") {
+          delete cell.dataset.longPressProb;
+          return;
+        }
+        if (e.pointerType === "touch" || e.pointerType === "pen") return;
 
         IWABA.view.hideProbTip(ctx);
         const r = Number(cell.dataset.r);

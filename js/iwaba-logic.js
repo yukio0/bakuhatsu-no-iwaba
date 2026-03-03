@@ -448,18 +448,26 @@
     );
   }
 
-  function maybeShowProbTip(ctx, cellEl) {
-    if (ctx.state.hasContradictionNow) return IWABA.view.hideProbTip(ctx);
+  function isProbTipEligibleForCell(ctx, cellEl) {
+    if (ctx.state.hasContradictionNow) return false;
 
     const r = Number(cellEl.dataset.r);
     const c = Number(cellEl.dataset.c);
-    if (!(0 <= r && r < ctx.state.rows && 0 <= c && c < ctx.state.cols)) return IWABA.view.hideProbTip(ctx);
+    if (!(0 <= r && r < ctx.state.rows && 0 <= c && c < ctx.state.cols)) return false;
 
     const { CellState } = ctx.consts;
-    if (ctx.state.grid[r][c].state !== CellState.WALL) return IWABA.view.hideProbTip(ctx);
-    if (cellEl.classList.contains("suggest-safe") || cellEl.classList.contains("suggest-mine")) return IWABA.view.hideProbTip(ctx);
+    if (ctx.state.grid[r][c].state !== CellState.WALL) return false;
+    if (cellEl.classList.contains("suggest-safe") || cellEl.classList.contains("suggest-mine")) return false;
+    if (!wallTouchesRevealed(ctx, r, c)) return false;
 
-    if (!wallTouchesRevealed(ctx, r, c)) return IWABA.view.hideProbTip(ctx);
+    return true;
+  }
+
+  function maybeShowProbTip(ctx, cellEl) {
+    if (!isProbTipEligibleForCell(ctx, cellEl)) return IWABA.view.hideProbTip(ctx);
+
+    const r = Number(cellEl.dataset.r);
+    const c = Number(cellEl.dataset.c);
 
     const result = computeMineProbabilityForWall(ctx, r, c, ctx.state.lastSuggestMines, ctx.state.lastSuggestSafes);
     if (!result || result.kind === "contradiction") return IWABA.view.hideProbTip(ctx);
@@ -657,6 +665,7 @@
     validateContradictions,
     renderContradictionsUI,
     computeMineProbabilityForWall,
+    isProbTipEligibleForCell,
     maybeShowProbTip,
     clearHints,
     solveDeterministic,
