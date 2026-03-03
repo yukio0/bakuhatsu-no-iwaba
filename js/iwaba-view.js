@@ -241,7 +241,7 @@
     append(opsInfoEl, title, ul);
   }
 
-  
+
   function setInputModeData(ctx) {
     try {
       const mode = ctx?.els?.inputModeEl?.value || "paint";
@@ -290,7 +290,28 @@
     root.style.setProperty("--cell", `${cell}px`);
   }
 
-function updateModeUI(ctx) {
+  function syncMobilePaintControls(ctx) {
+    const root = document.documentElement;
+    const { toolboxControlsEl, mobilePaintControlsEl, toolboxEl, opsInfoEl, inputModeEl } = ctx.els;
+    if (!root || !toolboxControlsEl || !mobilePaintControlsEl || !toolboxEl || !opsInfoEl || !inputModeEl) return;
+
+    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
+    const isMobile = mm("(max-width: 820px)") || mm("(pointer: coarse)");
+    const shouldMove = isMobile && inputModeEl.value === "paint";
+
+    root.dataset.mobileUi = shouldMove ? "1" : "0";
+
+    if (shouldMove) {
+      if (toolboxControlsEl.parentElement !== mobilePaintControlsEl) mobilePaintControlsEl.appendChild(toolboxControlsEl);
+      return;
+    }
+
+    if (toolboxControlsEl.parentElement !== toolboxEl) {
+      toolboxEl.insertBefore(toolboxControlsEl, opsInfoEl);
+    }
+  }
+
+  function updateModeUI(ctx) {
     const { toolGridEl, toolMetaEl } = ctx.els;
     if (ctx.els.inputModeEl.value === "cycle") {
       toolGridEl.style.display = "none";
@@ -301,6 +322,7 @@ function updateModeUI(ctx) {
     }
 
     setInputModeData(ctx);
+    syncMobilePaintControls(ctx);
     syncResponsiveBoard(ctx);
     renderOpsInfo(ctx);
   }
@@ -407,6 +429,7 @@ function updateModeUI(ctx) {
     clearSuggestVisualsOnly,
     applySuggestUI,
     syncResponsiveBoard,
+    syncMobilePaintControls,
     renderBoard,
   };
 })();

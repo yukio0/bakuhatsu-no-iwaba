@@ -25,6 +25,9 @@
       boardEl: document.getElementById("board"),
       axisXEl: document.getElementById("axisX"),
       axisYEl: document.getElementById("axisY"),
+      toolboxEl: document.querySelector(".toolbox"),
+      toolboxControlsEl: document.getElementById("toolboxControls"),
+      mobilePaintControlsEl: document.getElementById("mobilePaintControls"),
       toolGridEl: document.getElementById("toolGrid"),
       toolMetaEl: document.getElementById("toolMeta"),
       opsInfoEl: document.getElementById("opsInfo"),
@@ -92,7 +95,10 @@
 
   IWABA.input.bind(ctx);
 
-  const syncResponsive = () => IWABA.view.syncResponsiveBoard(ctx);
+  const syncResponsive = () => {
+    IWABA.view.syncMobilePaintControls(ctx);
+    IWABA.view.syncResponsiveBoard(ctx);
+  };
   window.addEventListener("resize", syncResponsive, { passive: true });
   window.addEventListener("orientationchange", syncResponsive, { passive: true });
 
