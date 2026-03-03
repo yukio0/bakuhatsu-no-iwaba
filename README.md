@@ -8,6 +8,8 @@
 
 > 操作性の都合上、PCでの使用をおすすめします。
 
+<img src="img/screenshot-202603040005.png" width="600" alt="画面のスクリーンショット"> <!-- markdownlint-disable-line MD033 -->
+
 ## 公開URL
 
 <https://yukio0.github.io/bakuhatsu-no-iwaba>
