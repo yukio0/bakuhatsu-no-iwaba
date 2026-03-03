@@ -718,6 +718,15 @@ html[data-theme="dark"] .num8 {
     margin-top: 10px;
 }
 
+.historyBtns {
+    margin-top: 10px;
+}
+
+.historyBtns button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .infoBlock {
     display: block;
 }

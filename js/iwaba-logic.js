@@ -101,6 +101,81 @@
     setCurrentTool(ctx, TOOL_DEFS[nidx].tool);
   }
 
+  function cloneGrid(grid) {
+    return grid.map((row) => row.map((st) => ({ state: st.state, num: st.num })));
+  }
+
+  function historySnapshot(ctx) {
+    return {
+      rows: ctx.state.rows,
+      cols: ctx.state.cols,
+      grid: cloneGrid(ctx.state.grid),
+    };
+  }
+
+  function updateHistoryButtons(ctx) {
+    const { btnUndo, btnRedo } = ctx.els;
+    const h = ctx.state.history;
+    if (btnUndo) btnUndo.disabled = h.past.length === 0;
+    if (btnRedo) btnRedo.disabled = h.future.length === 0;
+  }
+
+  function pushHistory(ctx) {
+    const h = ctx.state.history;
+    h.past.push(historySnapshot(ctx));
+    if (h.past.length > h.max) h.past.shift();
+    h.future = [];
+    updateHistoryButtons(ctx);
+  }
+
+  function replaceWithSnapshot(ctx, snap) {
+    if (!snap) return;
+    ctx.state.rows = snap.rows;
+    ctx.state.cols = snap.cols;
+    ctx.state.grid = cloneGrid(snap.grid);
+
+    ctx.state.hasContradictionNow = false;
+    ctx.state.lastSuggestMines = new Set();
+    ctx.state.lastSuggestSafes = new Set();
+    ctx.state.lastSuggestRecos = new Set();
+
+    IWABA.view.clearContradictionsUI(ctx);
+    IWABA.view.hideToast(ctx);
+    IWABA.view.hideProbTip(ctx);
+
+    IWABA.view.renderStageInfo(ctx);
+    IWABA.view.renderBoard(ctx);
+    IWABA.input.bindCells(ctx);
+    IWABA.view.updateModeUI(ctx);
+  }
+
+  function clearHistory(ctx) {
+    const h = ctx.state.history;
+    h.past = [];
+    h.future = [];
+    updateHistoryButtons(ctx);
+  }
+
+  function undo(ctx) {
+    const h = ctx.state.history;
+    if (h.past.length === 0) return false;
+    const prev = h.past.pop();
+    h.future.push(historySnapshot(ctx));
+    replaceWithSnapshot(ctx, prev);
+    updateHistoryButtons(ctx);
+    return true;
+  }
+
+  function redo(ctx) {
+    const h = ctx.state.history;
+    if (h.future.length === 0) return false;
+    const next = h.future.pop();
+    h.past.push(historySnapshot(ctx));
+    if (h.past.length > h.max) h.past.shift();
+    replaceWithSnapshot(ctx, next);
+    updateHistoryButtons(ctx);
+    return true;
+  }
 
   function applyStartCellBlank(ctx) {
     const { CellState } = ctx.consts;
@@ -131,6 +206,7 @@
     ctx.state.lastSuggestMines = new Set();
     ctx.state.lastSuggestSafes = new Set();
     ctx.state.lastSuggestRecos = new Set();
+    updateHistoryButtons(ctx);
   }
 
   function markDirty(ctx, { preserveUI = false } = {}) {
@@ -502,6 +578,11 @@
     setCurrentTool,
     bumpTool,
     moveToolCursorByArrow,
+    pushHistory,
+    clearHistory,
+    undo,
+    redo,
+    updateHistoryButtons,
     initGrid,
     markDirty,
     applyTool,

@@ -31,6 +31,8 @@
       currentToolPillEl: document.getElementById("currentToolPill"),
       btnSolve: document.getElementById("btnSolve"),
       btnReset: document.getElementById("btnReset"),
+      btnUndo: document.getElementById("btnUndo"),
+      btnRedo: document.getElementById("btnRedo"),
       autoSolveEl: document.getElementById("autoSolve"),
       toastEl: document.getElementById("toast"),
       boardScrollerEl: document.getElementById("boardScroller"),
@@ -57,6 +59,11 @@
       lastSuggestSafes: new Set(),
       lastSuggestRecos: new Set(),
       hasContradictionNow: false,
+      history: {
+        past: [],
+        future: [],
+        max: 200,
+      },
     },
   };
 

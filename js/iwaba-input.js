@@ -24,6 +24,18 @@
     IWABA.logic.solveDeterministic(ctx);
   }
 
+  function runUndo(ctx) {
+    const changed = IWABA.logic.undo(ctx);
+    if (!changed) return;
+    maybeAutoSolveNow(ctx);
+  }
+
+  function runRedo(ctx) {
+    const changed = IWABA.logic.redo(ctx);
+    if (!changed) return;
+    maybeAutoSolveNow(ctx);
+  }
+
   function setDarkMode(ctx, on) {
     const { themeToggleEl } = ctx.els;
     if (on) document.documentElement.dataset.theme = "dark";
@@ -77,6 +89,7 @@
         e.preventDefault();
 
         IWABA.view.hideProbTip(ctx);
+        IWABA.logic.pushHistory(ctx);
         const r = Number(cell.dataset.r);
         const c = Number(cell.dataset.c);
         IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true });
@@ -96,6 +109,7 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
+          IWABA.logic.pushHistory(ctx);
           IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.num(Number(k)), { preserveUI: preserve });
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
@@ -105,6 +119,7 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
+          IWABA.logic.pushHistory(ctx);
           IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.flag(), { preserveUI: preserve });
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
@@ -114,6 +129,7 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
+          IWABA.logic.pushHistory(ctx);
           IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.wall(), { preserveUI: preserve });
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
@@ -129,6 +145,8 @@
       inputModeEl,
       btnSolve,
       btnReset,
+      btnUndo,
+      btnRedo,
       autoSolveEl,
       toastEl,
       boardEl,
@@ -144,6 +162,8 @@
 
     window.addEventListener("resize", () => IWABA.view.syncSolveButtonWidth(ctx));
 
+    IWABA.logic.updateHistoryButtons(ctx);
+
     autoSolveEl.addEventListener("change", () => {
       if (autoSolveEnabled(ctx)) IWABA.logic.solveDeterministic(ctx);
     });
@@ -155,7 +175,10 @@
 
     boardScrollerEl.addEventListener("scroll", () => IWABA.view.hideProbTip(ctx), { passive: true });
 
-    difficultyEl.addEventListener("change", () => applyStageFromUI(ctx));
+    difficultyEl.addEventListener("change", () => {
+      applyStageFromUI(ctx);
+      IWABA.logic.clearHistory(ctx);
+    });
     inputModeEl.addEventListener("change", () => {
       IWABA.view.renderStageInfo(ctx);
       IWABA.view.updateModeUI(ctx);
@@ -164,12 +187,16 @@
 
     btnSolve.addEventListener("click", () => IWABA.logic.solveDeterministic(ctx));
     btnReset.addEventListener("click", () => {
+      IWABA.logic.pushHistory(ctx);
       IWABA.logic.initGrid(ctx);
       IWABA.logic.clearHints(ctx);
       IWABA.view.renderBoard(ctx);
       bindCells(ctx);
       maybeAutoSolveNow(ctx);
     });
+
+    if (btnUndo) btnUndo.addEventListener("click", () => runUndo(ctx));
+    if (btnRedo) btnRedo.addEventListener("click", () => runRedo(ctx));
 
     boardEl.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -205,6 +232,7 @@
 
         ctx.state.drag.rightStamp = stamp;
 
+        IWABA.logic.pushHistory(ctx);
         IWABA.logic.rightPaintStamp(ctx, r, c, stamp, { preserveUI: preserve });
         ctx.state.drag.changed = true;
         IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
@@ -232,6 +260,7 @@
       const stamp = `${r},${c},${IWABA.logic.toolSignature(ctx.state.currentTool)}`;
       ctx.state.drag.lastStamp = stamp;
 
+      IWABA.logic.pushHistory(ctx);
       IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
       ctx.state.drag.changed = true;
       IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
@@ -312,6 +341,16 @@
       const tag = ((document.activeElement && document.activeElement.tagName) || "").toLowerCase();
       if (tag === "input" || tag === "select" || tag === "textarea") return;
 
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
+        e.preventDefault();
+        runUndo(ctx);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
+        e.preventDefault();
+        runRedo(ctx);
+        return;
+      }
       if (
         ctx.els.inputModeEl.value === "paint" &&
         (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")
