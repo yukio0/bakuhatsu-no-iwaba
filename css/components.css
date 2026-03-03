@@ -565,7 +565,7 @@ html[data-theme="dark"] .num8 {
 }
 
 @media (max-width: 820px) {
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls {
+    html[data-mobile-ui="1"] .mobilePaintControls {
         display: block;
         border: 1px solid var(--toolBtnBorder);
         background: var(--toolBtnBg);
@@ -573,16 +573,16 @@ html[data-theme="dark"] .num8 {
         padding: 6px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .panel .toolboxControls {
+    html[data-mobile-ui="1"] .panel .toolboxControls {
         display: none;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .toolMeta {
+    html[data-mobile-ui="1"] .mobilePaintControls .toolMeta {
         margin-bottom: 6px;
         justify-content: flex-end;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .currentToolPill {
+    html[data-mobile-ui="1"] .mobilePaintControls .currentToolPill {
         width: auto;
         min-width: 56px;
         min-height: 24px;
@@ -597,35 +597,35 @@ html[data-theme="dark"] .num8 {
         gap: 4px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .toolGrid {
+    html[data-mobile-ui="1"] .mobilePaintControls .toolGrid {
         grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 4px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .toolBtn {
+    html[data-mobile-ui="1"] .mobilePaintControls .toolBtn {
         padding: 6px 2px;
         font-size: 11px;
         border-radius: 8px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .toolBtn small {
+    html[data-mobile-ui="1"] .mobilePaintControls .toolBtn small {
         margin-top: 1px;
         font-size: 8px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .mobileResetBtns {
+    html[data-mobile-ui="1"] .mobilePaintControls .mobileResetBtns {
         margin-top: 8px;
         grid-template-columns: 1fr;
         gap: 6px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .btns {
+    html[data-mobile-ui="1"] .mobilePaintControls .btns {
         margin-top: 8px;
         grid-template-columns: 1fr 1fr;
         gap: 6px;
     }
 
-    html[data-input-mode="paint"][data-mobile-ui="1"] .mobilePaintControls .btns button {
+    html[data-mobile-ui="1"] .mobilePaintControls .btns button {
         padding: 8px 6px;
         font-size: 12px;
         border-radius: 8px;

@@ -303,7 +303,8 @@
 
     const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
     const isMobile = mm("(max-width: 820px)") || mm("(pointer: coarse)");
-    const shouldMove = isMobile && inputModeEl.value === "paint";
+    const supportsBottomControls = inputModeEl.value === "paint" || inputModeEl.value === "cycle";
+    const shouldMove = isMobile && supportsBottomControls;
 
     root.dataset.mobileUi = shouldMove ? "1" : "0";
 
