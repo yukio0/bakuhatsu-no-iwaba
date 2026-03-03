@@ -113,6 +113,22 @@
     };
   }
 
+  function isSameSnapshot(a, b) {
+    if (!a || !b) return false;
+    if (a.rows !== b.rows || a.cols !== b.cols) return false;
+
+    for (let r = 0; r < a.rows; r++) {
+      for (let c = 0; c < a.cols; c++) {
+        const ac = a.grid[r][c];
+        const bc = b.grid[r][c];
+        if (!ac || !bc) return false;
+        if (ac.state !== bc.state || ac.num !== bc.num) return false;
+      }
+    }
+
+    return true;
+  }
+
   function updateHistoryButtons(ctx) {
     const { btnUndo, btnRedo } = ctx.els;
     const h = ctx.state.history;
@@ -623,6 +639,7 @@
     bumpTool,
     moveToolCursorByArrow,
     historySnapshot,
+    isSameSnapshot,
     commitHistorySnapshot,
     pushHistory,
     clearHistory,

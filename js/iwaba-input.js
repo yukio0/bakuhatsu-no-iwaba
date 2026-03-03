@@ -207,9 +207,12 @@
     });
 
     btnSolve.addEventListener("click", () => IWABA.logic.solveDeterministic(ctx));
+
     btnReset.addEventListener("click", () => {
-      IWABA.logic.pushHistory(ctx);
+      const snap = IWABA.logic.historySnapshot(ctx);
       IWABA.logic.initGrid(ctx);
+      const changed = !IWABA.logic.isSameSnapshot(snap, IWABA.logic.historySnapshot(ctx));
+      if (changed) IWABA.logic.commitHistorySnapshot(ctx, snap);
       IWABA.logic.clearHints(ctx);
       IWABA.view.renderBoard(ctx);
       bindCells(ctx);
