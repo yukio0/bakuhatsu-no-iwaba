@@ -134,6 +134,7 @@
   function updateCurrentToolPill(ctx) {
     const { currentToolPillEl } = ctx.els;
     const { currentTool } = ctx.state;
+    const hideShortcuts = isMobileLikeDevice();
 
     clearEl(currentToolPillEl);
     currentToolPillEl.appendChild(document.createTextNode("現在："));
@@ -166,8 +167,11 @@
       else if (def.id.startsWith("n")) labelNode = makeIconSpan(ctx, "num", Number(def.id.slice(1)));
       else labelNode = makeEl("span", null, def.label);
 
-      const sub = makeEl("small", null, def.sub);
-      append(btn, labelNode, sub);
+      append(btn, labelNode);
+      if (!isMobileLikeDevice()) {
+        const sub = makeEl("small", null, def.sub);
+        btn.appendChild(sub);
+      }
 
       btn.addEventListener("click", () => {
         inputModeEl.value = "paint";
@@ -178,6 +182,20 @@
 
       toolGridEl.appendChild(btn);
     }
+  }
+
+  function updateHistoryButtonLabels(ctx) {
+    const { btnUndo, btnRedo } = ctx.els;
+    if (!btnUndo || !btnRedo) return;
+
+    if (isMobileLikeDevice()) {
+      btnUndo.textContent = "元に戻す";
+      btnRedo.textContent = "やり直し";
+      return;
+    }
+
+    btnUndo.textContent = "元に戻す（Ctrl+Z）";
+    btnRedo.textContent = "やり直し（Ctrl+Y）";
   }
 
   function renderStageInfo(ctx) {
@@ -352,6 +370,7 @@
     }
 
     setInputModeData(ctx);
+    updateHistoryButtonLabels(ctx);
     syncMobilePaintControls(ctx);
     syncResponsiveBoard(ctx);
     renderOpsInfo(ctx);
@@ -454,6 +473,7 @@
     renderTools,
     renderStageInfo,
     renderOpsInfo,
+    updateHistoryButtonLabels,
     updateModeUI,
     syncSolveButtonWidth,
     clearSuggestVisualsOnly,

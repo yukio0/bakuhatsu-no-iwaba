@@ -96,6 +96,8 @@
   IWABA.input.bind(ctx);
 
   const syncResponsive = () => {
+    IWABA.view.renderTools(ctx);
+    IWABA.view.updateHistoryButtonLabels(ctx);
     IWABA.view.syncMobilePaintControls(ctx);
     IWABA.view.syncResponsiveBoard(ctx);
     IWABA.view.renderOpsInfo(ctx);
