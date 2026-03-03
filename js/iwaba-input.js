@@ -99,7 +99,20 @@
         maybeAutoSolveOnClick(ctx);
       });
 
-      cell.addEventListener("contextmenu", (e) => e.preventDefault());
+      cell.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (ctx.els.inputModeEl.value !== "cycle") return;
+
+        IWABA.view.hideProbTip(ctx);
+        const r = Number(cell.dataset.r);
+        const c = Number(cell.dataset.c);
+        const snap = IWABA.logic.historySnapshot(ctx);
+        const changed = IWABA.logic.cycleCellBackward(ctx, r, c, { preserveUI: true });
+        if (!changed) return;
+        IWABA.logic.commitHistorySnapshot(ctx, snap);
+        IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
+        maybeAutoSolveOnClick(ctx);
+      });
 
       cell.addEventListener("keydown", (e) => {
         const k = e.key.toLowerCase();
@@ -219,8 +232,10 @@
       if (e.button === 2) {
         e.preventDefault();
 
-        const preserve = isCycleMode(ctx);
-        if (!preserve && !autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
+        if (isCycleMode(ctx)) return;
+
+        const preserve = false;
+        if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
 
         ctx.state.drag.active = true;
         ctx.state.drag.changed = false;

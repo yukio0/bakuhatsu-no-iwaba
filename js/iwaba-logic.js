@@ -286,6 +286,29 @@
     return true;
   }
 
+  function cycleCellBackward(ctx, r, c, { preserveUI = false } = {}) {
+    const { CellState } = ctx.consts;
+    markDirty(ctx, { preserveUI });
+
+    const st = ctx.state.grid[r][c];
+    if (st.state === CellState.WALL) {
+      st.state = CellState.REVEALED;
+      st.num = 8;
+      return true;
+    }
+    if (st.state === CellState.FLAG) {
+      st.state = CellState.WALL;
+      st.num = 0;
+      return true;
+    }
+    if (st.num > 0) {
+      st.num--;
+      return true;
+    }
+    setFlag(ctx, st);
+    return true;
+  }
+
   function rightPaint(ctx, r, c, { preserveUI = false } = {}) {
     markDirty(ctx, { preserveUI });
     const st = ctx.state.grid[r][c];
@@ -610,6 +633,7 @@
     markDirty,
     applyTool,
     cycleCell,
+    cycleCellBackward,
     rightPaint,
     rightPaintCycle,
     rightPaintStamp,
