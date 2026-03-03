@@ -89,10 +89,12 @@
         e.preventDefault();
 
         IWABA.view.hideProbTip(ctx);
-        IWABA.logic.pushHistory(ctx);
         const r = Number(cell.dataset.r);
         const c = Number(cell.dataset.c);
-        IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true });
+        const snap = IWABA.logic.historySnapshot(ctx);
+        const changed = IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true });
+        if (!changed) return;
+        IWABA.logic.commitHistorySnapshot(ctx, snap);
         IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
         maybeAutoSolveOnClick(ctx);
       });
@@ -109,8 +111,10 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          IWABA.logic.pushHistory(ctx);
-          IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.num(Number(k)), { preserveUI: preserve });
+          const snap = IWABA.logic.historySnapshot(ctx);
+          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.num(Number(k)), { preserveUI: preserve });
+          if (!changed) return;
+          IWABA.logic.commitHistorySnapshot(ctx, snap);
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
           return;
@@ -119,8 +123,10 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          IWABA.logic.pushHistory(ctx);
-          IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.flag(), { preserveUI: preserve });
+          const snap = IWABA.logic.historySnapshot(ctx);
+          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.flag(), { preserveUI: preserve });
+          if (!changed) return;
+          IWABA.logic.commitHistorySnapshot(ctx, snap);
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
           return;
@@ -129,8 +135,10 @@
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          IWABA.logic.pushHistory(ctx);
-          IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.wall(), { preserveUI: preserve });
+          const snap = IWABA.logic.historySnapshot(ctx);
+          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.wall(), { preserveUI: preserve });
+          if (!changed) return;
+          IWABA.logic.commitHistorySnapshot(ctx, snap);
           IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
           maybeAutoSolveOnClick(ctx);
           return;
@@ -232,10 +240,10 @@
 
         ctx.state.drag.rightStamp = stamp;
 
-        IWABA.logic.pushHistory(ctx);
-        IWABA.logic.rightPaintStamp(ctx, r, c, stamp, { preserveUI: preserve });
-        ctx.state.drag.changed = true;
-        IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
+        ctx.state.drag.historySnapshot = IWABA.logic.historySnapshot(ctx);
+        const changed = IWABA.logic.rightPaintStamp(ctx, r, c, stamp, { preserveUI: preserve });
+        ctx.state.drag.changed = changed;
+        if (changed) IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
 
         boardEl.setPointerCapture(ctx.state.drag.pointerId);
         return;
@@ -256,14 +264,15 @@
       ctx.state.drag.rightAction = null;
       ctx.state.drag.rightStamp = null;
       ctx.state.drag.preserveUI = false;
+      ctx.state.drag.historySnapshot = null;
 
       const stamp = `${r},${c},${IWABA.logic.toolSignature(ctx.state.currentTool)}`;
       ctx.state.drag.lastStamp = stamp;
 
-      IWABA.logic.pushHistory(ctx);
-      IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
-      ctx.state.drag.changed = true;
-      IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
+      ctx.state.drag.historySnapshot = IWABA.logic.historySnapshot(ctx);
+      const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+      ctx.state.drag.changed = changed;
+      if (changed) IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
 
       boardEl.setPointerCapture(ctx.state.drag.pointerId);
     });
@@ -283,7 +292,8 @@
         if (key === ctx.state.drag.lastRightKey) return;
         ctx.state.drag.lastRightKey = key;
 
-        IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp, { preserveUI: ctx.state.drag.preserveUI });
+        const changed = IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp, { preserveUI: ctx.state.drag.preserveUI });
+        if (!changed) return;
 
         ctx.state.drag.changed = true;
         IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
@@ -292,7 +302,8 @@
         if (stamp === ctx.state.drag.lastStamp) return;
         ctx.state.drag.lastStamp = stamp;
 
-        IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+        const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+        if (!changed) return;
         ctx.state.drag.changed = true;
         IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
       }
@@ -303,6 +314,7 @@
       if (e.pointerId !== ctx.state.drag.pointerId) return;
 
       const changed = ctx.state.drag.changed;
+      if (changed && ctx.state.drag.historySnapshot) IWABA.logic.commitHistorySnapshot(ctx, ctx.state.drag.historySnapshot);
 
       ctx.state.drag.active = false;
       ctx.state.drag.changed = false;
@@ -313,6 +325,7 @@
       ctx.state.drag.lastStamp = null;
       ctx.state.drag.lastRightKey = null;
       ctx.state.drag.preserveUI = false;
+      ctx.state.drag.historySnapshot = null;
 
       try { boardEl.releasePointerCapture(e.pointerId); } catch { }
 

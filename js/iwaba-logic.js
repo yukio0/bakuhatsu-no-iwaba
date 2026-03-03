@@ -120,12 +120,16 @@
     if (btnRedo) btnRedo.disabled = h.future.length === 0;
   }
 
-  function pushHistory(ctx) {
+  function commitHistorySnapshot(ctx, snap) {
     const h = ctx.state.history;
-    h.past.push(historySnapshot(ctx));
+    h.past.push(snap);
     if (h.past.length > h.max) h.past.shift();
     h.future = [];
     updateHistoryButtons(ctx);
+  }
+
+  function pushHistory(ctx) {
+    commitHistorySnapshot(ctx, historySnapshot(ctx));
   }
 
   function replaceWithSnapshot(ctx, snap) {
@@ -232,22 +236,32 @@
     st.num = 0;
   }
 
+  function isSameCellState(st, state, num) {
+    return st.state === state && st.num === num;
+  }
+
   function applyTool(ctx, r, c, tool, { preserveUI = false } = {}) {
     const { CellState } = ctx.consts;
-    markDirty(ctx, { preserveUI });
 
     const st = ctx.state.grid[r][c];
     if (tool.kind === "wall") {
+      if (isSameCellState(st, CellState.WALL, 0)) return false;
+      markDirty(ctx, { preserveUI });
       st.state = CellState.WALL;
       st.num = 0;
-      return;
+      return true;
     }
     if (tool.kind === "flag") {
+      if (isSameCellState(st, CellState.FLAG, 0)) return false;
+      markDirty(ctx, { preserveUI });
       setFlag(ctx, st);
-      return;
+      return true;
     }
+    if (isSameCellState(st, CellState.REVEALED, tool.num)) return false;
+    markDirty(ctx, { preserveUI });
     st.state = CellState.REVEALED;
     st.num = tool.num;
+    return true;
   }
 
   function cycleCell(ctx, r, c, { preserveUI = false } = {}) {
@@ -257,18 +271,19 @@
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
       setFlag(ctx, st);
-      return;
+      return true;
     }
     if (st.state === CellState.FLAG) {
       st.state = CellState.REVEALED;
       st.num = 0;
-      return;
+      return true;
     }
     if (st.num < 8) st.num++;
     else {
       st.state = CellState.WALL;
       st.num = 0;
     }
+    return true;
   }
 
   function rightPaint(ctx, r, c, { preserveUI = false } = {}) {
@@ -304,21 +319,27 @@
 
   function rightPaintStamp(ctx, r, c, stamp, { preserveUI = false } = {}) {
     const { CellState } = ctx.consts;
-    markDirty(ctx, { preserveUI });
 
     const st = ctx.state.grid[r][c];
 
     if (stamp === "wall") {
+      if (isSameCellState(st, CellState.WALL, 0)) return false;
+      markDirty(ctx, { preserveUI });
       st.state = CellState.WALL;
       st.num = 0;
-      return;
+      return true;
     }
     if (stamp === "blank") {
+      if (isSameCellState(st, CellState.REVEALED, 0)) return false;
+      markDirty(ctx, { preserveUI });
       st.state = CellState.REVEALED;
       st.num = 0;
-      return;
+      return true;
     }
+    if (isSameCellState(st, CellState.FLAG, 0)) return false;
+    markDirty(ctx, { preserveUI });
     setFlag(ctx, st);
+    return true;
   }
 
 
@@ -578,6 +599,8 @@
     setCurrentTool,
     bumpTool,
     moveToolCursorByArrow,
+    historySnapshot,
+    commitHistorySnapshot,
     pushHistory,
     clearHistory,
     undo,
