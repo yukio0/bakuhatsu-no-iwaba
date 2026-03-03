@@ -292,8 +292,14 @@
 
   function syncMobilePaintControls(ctx) {
     const root = document.documentElement;
-    const { toolboxControlsEl, mobilePaintControlsEl, toolboxEl, opsInfoEl, inputModeEl } = ctx.els;
-    if (!root || !toolboxControlsEl || !mobilePaintControlsEl || !toolboxEl || !opsInfoEl || !inputModeEl) return;
+    const { toolboxControlsEl, mobilePaintControlsEl, toolboxEl, toolMetaEl, opsInfoEl, inputModeEl, btnReset } = ctx.els;
+    if (!root || !toolboxControlsEl || !mobilePaintControlsEl || !toolboxEl || !toolMetaEl || !opsInfoEl || !inputModeEl || !btnReset) return;
+
+    const toolboxHeadEl = toolboxEl.querySelector(".toolboxHead");
+    const historyBtnsEl = toolboxControlsEl.querySelector("#historyBtns");
+    const panelEl = toolboxEl.closest(".panel");
+    const resetBtnsEl = btnReset.closest(".btns");
+    if (!toolboxHeadEl || !historyBtnsEl || !panelEl || !resetBtnsEl) return;
 
     const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
     const isMobile = mm("(max-width: 820px)") || mm("(pointer: coarse)");
@@ -302,13 +308,21 @@
     root.dataset.mobileUi = shouldMove ? "1" : "0";
 
     if (shouldMove) {
+      if (toolMetaEl.parentElement !== mobilePaintControlsEl) {
+        mobilePaintControlsEl.insertBefore(toolMetaEl, mobilePaintControlsEl.firstChild || null);
+      }
       if (toolboxControlsEl.parentElement !== mobilePaintControlsEl) mobilePaintControlsEl.appendChild(toolboxControlsEl);
+
+      if (!resetBtnsEl.classList.contains("mobileResetBtns")) resetBtnsEl.classList.add("mobileResetBtns");
+      if (resetBtnsEl.parentElement !== toolboxControlsEl || resetBtnsEl.previousElementSibling !== historyBtnsEl) toolboxControlsEl.appendChild(resetBtnsEl);
       return;
     }
 
-    if (toolboxControlsEl.parentElement !== toolboxEl) {
-      toolboxEl.insertBefore(toolboxControlsEl, opsInfoEl);
-    }
+    if (toolMetaEl.parentElement !== toolboxHeadEl) toolboxHeadEl.appendChild(toolMetaEl);
+    if (toolboxControlsEl.parentElement !== toolboxEl) toolboxEl.insertBefore(toolboxControlsEl, opsInfoEl);
+
+    if (resetBtnsEl.classList.contains("mobileResetBtns")) resetBtnsEl.classList.remove("mobileResetBtns");
+    if (resetBtnsEl.parentElement !== panelEl) panelEl.appendChild(resetBtnsEl);
   }
 
   function updateModeUI(ctx) {
