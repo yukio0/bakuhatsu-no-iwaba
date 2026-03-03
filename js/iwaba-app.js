@@ -98,6 +98,7 @@
   const syncResponsive = () => {
     IWABA.view.syncMobilePaintControls(ctx);
     IWABA.view.syncResponsiveBoard(ctx);
+    IWABA.view.renderOpsInfo(ctx);
   };
   window.addEventListener("resize", syncResponsive, { passive: true });
   window.addEventListener("orientationchange", syncResponsive, { passive: true });

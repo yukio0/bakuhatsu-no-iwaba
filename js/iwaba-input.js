@@ -79,14 +79,58 @@
 
   function bindCells(ctx) {
     const { boardEl } = ctx.els;
+    const LONG_PRESS_MS = 450;
+    const LONG_PRESS_MOVE_PX = 10;
+
+    function clearLongPressTimer(cell) {
+      const id = Number(cell.dataset.longPressTimerId || 0);
+      if (id > 0) clearTimeout(id);
+      delete cell.dataset.longPressTimerId;
+      delete cell.dataset.longPressStartX;
+      delete cell.dataset.longPressStartY;
+    }
 
     for (const cell of boardEl.querySelectorAll(".cell")) {
       cell.addEventListener("mouseenter", () => IWABA.logic.maybeShowProbTip(ctx, cell));
       cell.addEventListener("mouseleave", () => IWABA.view.hideProbTip(ctx));
 
+      cell.addEventListener("pointerdown", (e) => {
+        if (!isCycleMode(ctx)) return;
+        if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+        clearLongPressTimer(cell);
+
+        cell.dataset.longPressStartX = String(e.clientX);
+        cell.dataset.longPressStartY = String(e.clientY);
+
+        const tid = window.setTimeout(() => {
+          IWABA.logic.maybeShowProbTip(ctx, cell);
+          cell.dataset.longPressProb = "1";
+          clearLongPressTimer(cell);
+        }, LONG_PRESS_MS);
+        cell.dataset.longPressTimerId = String(tid);
+      });
+
+      cell.addEventListener("pointermove", (e) => {
+        const sx = Number(cell.dataset.longPressStartX);
+        const sy = Number(cell.dataset.longPressStartY);
+        if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
+
+        const dx = e.clientX - sx;
+        const dy = e.clientY - sy;
+        if (dx * dx + dy * dy >= LONG_PRESS_MOVE_PX * LONG_PRESS_MOVE_PX) clearLongPressTimer(cell);
+      });
+
+      const cancelLongPress = () => clearLongPressTimer(cell);
+      cell.addEventListener("pointerup", cancelLongPress);
+      cell.addEventListener("pointercancel", cancelLongPress);
       cell.addEventListener("click", (e) => {
         if (ctx.els.inputModeEl.value !== "cycle") return;
         e.preventDefault();
+
+        if (cell.dataset.longPressProb === "1") {
+          delete cell.dataset.longPressProb;
+          return;
+        }
 
         IWABA.view.hideProbTip(ctx);
         const r = Number(cell.dataset.r);

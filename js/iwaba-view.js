@@ -212,30 +212,45 @@
     infoEl.appendChild(block);
   }
 
+  function isMobileLikeDevice() {
+    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
+    return mm("(max-width: 820px)") || mm("(pointer: coarse)");
+  }
+
   function renderOpsInfo(ctx) {
     const { opsInfoEl, inputModeEl } = ctx.els;
     clearEl(opsInfoEl);
 
     const isCycle = inputModeEl.value === "cycle";
+    const isMobile = isMobileLikeDevice();
 
     const title = makeEl("b", null, isCycle ? "操作方法（サイクル）" : "操作方法（ペイント）");
     const ul = makeEl("ul", "opsList");
 
     const items = isCycle
-      ? [
-        "左クリック：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
-        "右クリック：タイルを戻す（壁→8→7→6→…→⚑→壁）",
-        "キーボード：0-8で数字入力／Fで⚑／W or ?で壁",
-        "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
-      ]
-      : [
-        "左クリック/左ドラッグ：選択タイルで塗る",
-        "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
-        "ホイール, カーソルキー（↑↓←→）：タイル切替",
-        "キーボード：0-8で床／Fで⚑／W or ?で壁",
-        "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
-      ];
-
+      ? isMobile
+        ? [
+          "タップ：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
+          "長押し：地雷確率を表示（周囲に床がある壁マス）",
+        ]
+        : [
+          "左クリック：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
+          "右クリック：タイルを戻す（壁→8→7→6→…→⚑→壁）",
+          "キーボード：0-8で数字入力／Fで⚑／W or ?で壁",
+          "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
+        ]
+      : isMobile
+        ? [
+          "タップ/ドラッグ：選択タイルで塗る",
+          "長押し：地雷確率を表示（周囲に床がある壁マス）",
+        ]
+        : [
+          "左クリック/左ドラッグ：選択タイルで塗る",
+          "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
+          "ホイール, カーソルキー（↑↓←→）：タイル切替",
+          "キーボード：0-8で床／Fで⚑／W or ?で壁",
+          "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
+        ];
 
     for (const t of items) ul.appendChild(makeEl("li", null, t));
     append(opsInfoEl, title, ul);
