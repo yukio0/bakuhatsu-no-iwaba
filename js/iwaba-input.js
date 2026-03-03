@@ -225,6 +225,71 @@
       boardScrollerEl,
       themeToggleEl,
     } = ctx.els;
+    const TOUCH_LONG_PRESS_MS = 450;
+    const TOUCH_LONG_PRESS_MOVE_PX = 10;
+
+    let savedHtmlOverflow = null;
+    let savedBodyOverflow = null;
+    let savedHtmlTouchAction = null;
+
+    function setDragScrollLock(on) {
+      const root = document.documentElement;
+      const body = document.body;
+
+      if (on) {
+        if (savedHtmlOverflow === null) savedHtmlOverflow = root.style.overflow || "";
+        if (savedBodyOverflow === null) savedBodyOverflow = body.style.overflow || "";
+        if (savedHtmlTouchAction === null) savedHtmlTouchAction = root.style.touchAction || "";
+
+        root.style.overflow = "hidden";
+        body.style.overflow = "hidden";
+        root.style.touchAction = "none";
+
+        if (boardScrollerEl) boardScrollerEl.style.touchAction = "none";
+        return;
+      }
+
+      root.style.overflow = savedHtmlOverflow ?? "";
+      body.style.overflow = savedBodyOverflow ?? "";
+      root.style.touchAction = savedHtmlTouchAction ?? "";
+      savedHtmlOverflow = null;
+      savedBodyOverflow = null;
+      savedHtmlTouchAction = null;
+
+      if (boardScrollerEl) boardScrollerEl.style.removeProperty("touch-action");
+    }
+
+    function clearPendingPaintLongPress() {
+      const id = Number(ctx.state.drag.pendingLongPressTimerId || 0);
+      if (id > 0) clearTimeout(id);
+      ctx.state.drag.pendingLongPressTimerId = null;
+      ctx.state.drag.pendingCellR = null;
+      ctx.state.drag.pendingCellC = null;
+      ctx.state.drag.pendingStartX = null;
+      ctx.state.drag.pendingStartY = null;
+    }
+
+    function beginLeftPaintDrag(pointerId, cell, r, c) {
+      const stamp = `${r},${c},${IWABA.logic.toolSignature(ctx.state.currentTool)}`;
+
+
+      ctx.state.drag.active = true;
+      ctx.state.drag.pointerId = pointerId;
+      ctx.state.drag.mode = "left";
+      ctx.state.drag.lastStamp = stamp;
+      ctx.state.drag.lastRightKey = null;
+      ctx.state.drag.rightAction = null;
+      ctx.state.drag.rightStamp = null;
+      ctx.state.drag.preserveUI = false;
+
+      const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+      if (changed) {
+        ctx.state.drag.changed = true;
+        IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
+      }
+
+      setDragScrollLock(true);
+    }
 
     setDarkMode(ctx, false);
     themeToggleEl.addEventListener("click", () => {
@@ -246,6 +311,7 @@
     });
 
     boardScrollerEl.addEventListener("scroll", () => IWABA.view.hideProbTip(ctx), { passive: true });
+    document.addEventListener("pointerdown", () => IWABA.view.hideProbTip(ctx), { capture: true, passive: true });
 
     difficultyEl.addEventListener("change", () => {
       applyStageFromUI(ctx);
@@ -314,6 +380,7 @@
         ctx.state.drag.changed = changed;
         if (changed) IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
 
+        setDragScrollLock(true);
         boardEl.setPointerCapture(ctx.state.drag.pointerId);
         return;
       }
@@ -322,33 +389,63 @@
       if (ctx.els.inputModeEl.value !== "paint") return;
 
       e.preventDefault();
-      if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
+      const canLongPressForProb = (e.pointerType === "touch" || e.pointerType === "pen") && IWABA.logic.isProbTipEligibleForCell(ctx, cell);
 
       ctx.state.drag.active = true;
       ctx.state.drag.changed = false;
       ctx.state.drag.pointerId = e.pointerId;
-      ctx.state.drag.mode = "left";
+      ctx.state.drag.mode = canLongPressForProb ? "leftPending" : "left";
       ctx.state.drag.lastStamp = null;
       ctx.state.drag.lastRightKey = null;
       ctx.state.drag.rightAction = null;
       ctx.state.drag.rightStamp = null;
       ctx.state.drag.preserveUI = false;
-      ctx.state.drag.historySnapshot = null;
-
-      const stamp = `${r},${c},${IWABA.logic.toolSignature(ctx.state.currentTool)}`;
-      ctx.state.drag.lastStamp = stamp;
-
+      if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
       ctx.state.drag.historySnapshot = IWABA.logic.historySnapshot(ctx);
-      const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
-      ctx.state.drag.changed = changed;
-      if (changed) IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
 
+      if (canLongPressForProb) {
+        clearPendingPaintLongPress();
+        ctx.state.drag.pendingCellR = r;
+        ctx.state.drag.pendingCellC = c;
+        ctx.state.drag.pendingStartX = e.clientX;
+        ctx.state.drag.pendingStartY = e.clientY;
+
+        ctx.state.drag.pendingLongPressTimerId = window.setTimeout(() => {
+          const active = ctx.state.drag.active && ctx.state.drag.pointerId === e.pointerId && ctx.state.drag.mode === "leftPending";
+          if (!active) return;
+          IWABA.logic.maybeShowProbTip(ctx, cell);
+          ctx.state.drag.mode = "probPreview";
+          clearPendingPaintLongPress();
+        }, TOUCH_LONG_PRESS_MS);
+      } else {
+        beginLeftPaintDrag(e.pointerId, cell, r, c);
+      }
+
+      setDragScrollLock(true);
       boardEl.setPointerCapture(ctx.state.drag.pointerId);
     });
 
     boardEl.addEventListener("pointermove", (e) => {
       if (!ctx.state.drag.active) return;
       if (e.pointerId !== ctx.state.drag.pointerId) return;
+      if (e.cancelable) e.preventDefault();
+
+      if (ctx.state.drag.mode === "leftPending") {
+        const sx = Number(ctx.state.drag.pendingStartX);
+        const sy = Number(ctx.state.drag.pendingStartY);
+        const dx = e.clientX - sx;
+        const dy = e.clientY - sy;
+        const moved = Number.isFinite(sx) && Number.isFinite(sy) && (dx * dx + dy * dy >= TOUCH_LONG_PRESS_MOVE_PX * TOUCH_LONG_PRESS_MOVE_PX);
+        if (!moved) return;
+
+        const startR = Number(ctx.state.drag.pendingCellR);
+        const startC = Number(ctx.state.drag.pendingCellC);
+        clearPendingPaintLongPress();
+        const startCell = ctx.els.boardEl.querySelector(`.cell[data-r="${startR}"][data-c="${startC}"]`);
+        if (startCell) beginLeftPaintDrag(e.pointerId, startCell, startR, startC);
+        else ctx.state.drag.mode = "left";
+      }
+      if (ctx.state.drag.mode === "probPreview") return;
 
       const cell = cellFromPoint(ctx, e.clientX, e.clientY);
       if (!cell) return;
@@ -395,6 +492,8 @@
       ctx.state.drag.lastRightKey = null;
       ctx.state.drag.preserveUI = false;
       ctx.state.drag.historySnapshot = null;
+      clearPendingPaintLongPress();
+      setDragScrollLock(false);
 
       try { boardEl.releasePointerCapture(e.pointerId); } catch { }
 
