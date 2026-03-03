@@ -328,8 +328,13 @@ html[data-input-mode="paint"] .cell {
     border-color: var(--revealedBorder);
 }
 
-.cell:focus-visible {
-    outline: 3px solid rgba(59, 130, 246, 0.85);
+html[data-input-mode="cycle"] .cell:focus {
+    outline: 3px solid rgba(147, 197, 253, 0.9);
+    outline-offset: -2px;
+}
+
+html[data-input-mode="paint"] .cell:focus-visible {
+    outline: 3px solid rgba(147, 197, 253, 0.9);
     outline-offset: -2px;
 }
 
@@ -353,7 +358,9 @@ html[data-theme="dark"] .cell.suggest-reco {
     box-shadow: inset 0 0 0 999px rgba(134, 183, 255, 0.10);
 }
 
-.cell.contradiction {
+.cell.contradiction,
+html[data-input-mode="cycle"] .cell.contradiction:focus,
+html[data-input-mode="paint"] .cell.contradiction:focus-visible {
     outline: 3px solid rgba(255, 71, 87, 0.92);
     outline-offset: -2px;
 }
@@ -648,7 +655,7 @@ html[data-theme="dark"] .num8 {
 }
 
 .toastClose:focus-visible {
-    outline: 3px solid rgba(59, 130, 246, 0.85);
+    outline: 3px solid rgba(147, 197, 253, 0.9);
     outline-offset: 2px;
 }
 
