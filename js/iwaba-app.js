@@ -72,20 +72,6 @@
 
   IWABA.ctx = ctx;
 
-  (() => {
-    const el = ctx.els.inputModeEl;
-    if (!el) return;
-
-    const ua = (navigator.userAgent || "");
-    const uaMobile = /Android|iPhone|iPad|iPod|Mobile|Mobi/i.test(ua);
-    const coarse =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(pointer: coarse)").matches;
-
-    if (uaMobile || coarse) el.value = "cycle";
-  })();
-
-
   IWABA.view.renderStageInfo(ctx);
   IWABA.logic.initGrid(ctx);
   IWABA.logic.setCurrentTool(ctx, C.Tool.wall());
