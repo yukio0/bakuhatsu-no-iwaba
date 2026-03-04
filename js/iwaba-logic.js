@@ -144,10 +144,6 @@
     updateHistoryButtons(ctx);
   }
 
-  function pushHistory(ctx) {
-    commitHistorySnapshot(ctx, historySnapshot(ctx));
-  }
-
   function replaceWithSnapshot(ctx, snap) {
     if (!snap) return;
     ctx.state.rows = snap.rows;
@@ -323,37 +319,6 @@
     }
     setFlag(ctx, st);
     return true;
-  }
-
-  function rightPaint(ctx, r, c, { preserveUI = false } = {}) {
-    markDirty(ctx, { preserveUI });
-    const st = ctx.state.grid[r][c];
-    if (ctx.state.drag.rightAction === "setFlag") setFlag(ctx, st);
-    else clearFlag(ctx, st);
-  }
-
-  function rightPaintCycle(ctx, r, c, { preserveUI = false } = {}) {
-    const { CellState } = ctx.consts;
-    markDirty(ctx, { preserveUI });
-
-    const st = ctx.state.grid[r][c];
-
-    if (st.state === CellState.WALL) {
-      setFlag(ctx, st);
-      return;
-    }
-
-    if (st.state === CellState.FLAG) {
-      st.state = CellState.REVEALED;
-      st.num = 0;
-      return;
-    }
-    if (st.num === 0) {
-      st.state = CellState.WALL;
-      st.num = 0;
-      return;
-    }
-    setFlag(ctx, st);
   }
 
   function rightPaintStamp(ctx, r, c, stamp, { preserveUI = false } = {}) {
@@ -649,7 +614,6 @@
     historySnapshot,
     isSameSnapshot,
     commitHistorySnapshot,
-    pushHistory,
     clearHistory,
     undo,
     redo,
@@ -659,8 +623,6 @@
     applyTool,
     cycleCell,
     cycleCellBackward,
-    rightPaint,
-    rightPaintCycle,
     rightPaintStamp,
     validateContradictions,
     renderContradictionsUI,
