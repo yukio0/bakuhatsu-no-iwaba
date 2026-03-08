@@ -16,19 +16,28 @@
   }
 
   function append(parent, ...children) {
-    for (const ch of children) {
-      if (ch === null || ch === undefined) continue;
-      parent.appendChild(ch);
+    for (const child of children) {
+      if (child === null || child === undefined) continue;
+      parent.appendChild(child);
     }
     return parent;
   }
 
   function makeIconSpan(ctx, kind, n = null, extraClass = null) {
     const { WALL_CHAR } = ctx.consts;
-    if (kind === "wall") return makeEl("span", extraClass ? `wallIcon ${extraClass}` : "wallIcon", WALL_CHAR);
-    if (kind === "flag") return makeEl("span", extraClass ? `flagIcon ${extraClass}` : "flagIcon", "⚑");
-    if (kind === "blank") return makeEl("span", extraClass ? `blankIcon ${extraClass}` : "blankIcon", "\u00A0");
-    if (kind === "num") return makeEl("span", extraClass ? `num${n} ${extraClass}` : `num${n}`, String(n));
+
+    if (kind === "wall") {
+      return makeEl("span", extraClass ? `wallIcon ${extraClass}` : "wallIcon", WALL_CHAR);
+    }
+    if (kind === "flag") {
+      return makeEl("span", extraClass ? `flagIcon ${extraClass}` : "flagIcon", "⚑");
+    }
+    if (kind === "blank") {
+      return makeEl("span", extraClass ? `blankIcon ${extraClass}` : "blankIcon", "\u00A0");
+    }
+    if (kind === "num") {
+      return makeEl("span", extraClass ? `num${n} ${extraClass}` : `num${n}`, String(n));
+    }
     return makeEl("span", extraClass, "");
   }
 
@@ -47,12 +56,13 @@
 
   function clearContradictionsUI(ctx) {
     const { boardEl } = ctx.els;
-    for (const el of boardEl.querySelectorAll(".cell.contradiction")) el.classList.remove("contradiction");
+    for (const el of boardEl.querySelectorAll(".cell.contradiction")) {
+      el.classList.remove("contradiction");
+    }
   }
 
   function getCellEl(ctx, r, c) {
-    const { boardEl } = ctx.els;
-    return boardEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    return ctx.els.boardEl.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
   }
 
   function hideProbTip(ctx) {
@@ -66,9 +76,11 @@
     const { probTipEl } = ctx.els;
     clearEl(probTipEl);
 
-    const b = makeEl("b", null, titleText);
-    const sub = makeEl("div", "muted", subText);
-    append(probTipEl, b, sub);
+    append(
+      probTipEl,
+      makeEl("b", null, titleText),
+      makeEl("div", "muted", subText)
+    );
 
     probTipEl.classList.add("show");
     probTipEl.setAttribute("aria-hidden", "false");
@@ -80,42 +92,42 @@
     left = Math.max(8, Math.min(left, window.innerWidth - tipRect.width - 8));
 
     let top = cellRect.top - tipRect.height - 12;
-    let arrow = "arrowDown";
+    let arrowClass = "arrowDown";
     if (top < 8) {
       top = cellRect.bottom + 12;
-      arrow = "arrowUp";
+      arrowClass = "arrowUp";
     }
 
     const arrowX = cellRect.left + cellRect.width / 2 - left;
     probTipEl.style.setProperty("--arrow-x", `${Math.round(arrowX)}px`);
-
     probTipEl.classList.remove("arrowUp", "arrowDown");
-    probTipEl.classList.add(arrow);
-
+    probTipEl.classList.add(arrowClass);
     probTipEl.style.left = `${Math.round(left)}px`;
     probTipEl.style.top = `${Math.round(top)}px`;
   }
 
-  function setCellVisual(ctx, cellEl, st) {
+  function setCellVisual(ctx, cellEl, cellState) {
     const { CellState } = ctx.consts;
+
     if (cellEl.dataset.hintMine === "1") delete cellEl.dataset.hintMine;
 
-    cellEl.dataset.state = st.state;
+    cellEl.dataset.state = cellState.state;
     cellEl.classList.remove("suggest-safe", "suggest-mine", "suggest-reco");
-
     clearEl(cellEl);
 
-    if (st.state === CellState.WALL) {
+    if (cellState.state === CellState.WALL) {
       cellEl.appendChild(makeIconSpan(ctx, "wall"));
       return;
     }
-    if (st.state === CellState.FLAG) {
+    if (cellState.state === CellState.FLAG) {
       cellEl.appendChild(makeIconSpan(ctx, "flag"));
       return;
     }
-    const n = st.num;
-    if (n === 0) cellEl.appendChild(makeIconSpan(ctx, "blank"));
-    else cellEl.appendChild(makeIconSpan(ctx, "num", n));
+    if (cellState.num === 0) {
+      cellEl.appendChild(makeIconSpan(ctx, "blank"));
+      return;
+    }
+    cellEl.appendChild(makeIconSpan(ctx, "num", cellState.num));
   }
 
   function renderAxes(ctx) {
@@ -124,31 +136,42 @@
 
     axisXEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
     clearEl(axisXEl);
-    for (let c = 1; c <= cols; c++) axisXEl.appendChild(makeEl("div", "axisCellX", String(c)));
+    for (let c = 1; c <= cols; c++) {
+      axisXEl.appendChild(makeEl("div", "axisCellX", String(c)));
+    }
 
     axisYEl.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
     clearEl(axisYEl);
-    for (let r = 0; r < rows; r++) axisYEl.appendChild(makeEl("div", "axisCellY", ctx.utils.toKanji(rows - r)));
+    for (let r = 0; r < rows; r++) {
+      axisYEl.appendChild(makeEl("div", "axisCellY", ctx.utils.toKanji(rows - r)));
+    }
+  }
+
+  function makeCurrentToolNode(ctx, tool) {
+    if (tool.kind === "num") {
+      return tool.num === 0 ? makeEl("span", "blankIcon", "□") : makeIconSpan(ctx, "num", tool.num);
+    }
+    if (tool.kind === "flag") return makeIconSpan(ctx, "flag");
+    return makeIconSpan(ctx, "wall");
   }
 
   function updateCurrentToolPill(ctx) {
     const { currentToolPillEl } = ctx.els;
-    const { currentTool } = ctx.state;
     clearEl(currentToolPillEl);
     currentToolPillEl.appendChild(document.createTextNode("現在："));
+    currentToolPillEl.appendChild(makeCurrentToolNode(ctx, ctx.state.currentTool));
+  }
 
-    if (currentTool.kind === "num") {
-      if (currentTool.num === 0) currentToolPillEl.appendChild(makeEl("span", "blankIcon", "□"));
-      else currentToolPillEl.appendChild(makeIconSpan(ctx, "num", currentTool.num));
-    } else if (currentTool.kind === "flag") {
-      currentToolPillEl.appendChild(makeIconSpan(ctx, "flag"));
-    } else {
-      currentToolPillEl.appendChild(makeIconSpan(ctx, "wall"));
-    }
+  function makeToolButtonLabel(ctx, def) {
+    if (def.id === "wall") return makeIconSpan(ctx, "wall");
+    if (def.id === "flag") return makeIconSpan(ctx, "flag");
+    if (def.id === "n0") return makeEl("span", "blankIcon", "□");
+    if (def.id.startsWith("n")) return makeIconSpan(ctx, "num", Number(def.id.slice(1)));
+    return makeEl("span", null, def.label);
   }
 
   function renderTools(ctx) {
-    const { toolGridEl } = ctx.els;
+    const { toolGridEl, inputModeEl } = ctx.els;
     const { TOOL_DEFS } = ctx.consts;
     const { currentTool } = ctx.state;
 
@@ -158,17 +181,9 @@
       const btn = makeEl("div", "toolBtn");
       if (IWABA.logic.toolEquals(def.tool, currentTool)) btn.classList.add("active");
 
-      let labelNode = null;
-      if (def.id === "wall") labelNode = makeIconSpan(ctx, "wall");
-      else if (def.id === "flag") labelNode = makeIconSpan(ctx, "flag");
-      else if (def.id === "n0") labelNode = makeEl("span", "blankIcon", "□");
-      else if (def.id.startsWith("n")) labelNode = makeIconSpan(ctx, "num", Number(def.id.slice(1)));
-      else labelNode = makeEl("span", null, def.label);
-
-      append(btn, labelNode);
+      append(btn, makeToolButtonLabel(ctx, def));
       if (!isMobileLikeDevice()) {
-        const sub = makeEl("small", null, def.sub);
-        btn.appendChild(sub);
+        btn.appendChild(makeEl("small", null, def.sub));
       }
 
       btn.addEventListener("click", () => {
@@ -196,44 +211,77 @@
     btnRedo.textContent = "やり直し（Ctrl+Y）";
   }
 
+  function makeInfoRow(label, valueNode) {
+    const wrap = makeEl("div", "kvRow");
+    const dt = makeEl("dt", null, label);
+    const dd = makeEl("dd");
+    dd.appendChild(valueNode);
+    append(wrap, dt, dd);
+    return wrap;
+  }
+
   function renderStageInfo(ctx) {
     const { infoEl, difficultyEl, inputModeEl } = ctx.els;
     const { STAGES } = ctx.consts;
 
     clearEl(infoEl);
 
-    const st = STAGES[difficultyEl.value] ?? STAGES.beginner;
+    const stage = STAGES[difficultyEl.value] ?? STAGES.beginner;
     const modeLabel = inputModeEl.value === "paint" ? "ペイント" : "サイクル";
 
     const block = makeEl("div", "infoBlock");
     const title = makeEl("b", null, "設定");
+    const list = makeEl("dl", "kv");
 
-    const dl = makeEl("dl", "kv");
+    append(
+      list,
+      makeInfoRow("難易度", makeEl("b", null, stage.label)),
+      makeInfoRow("マップサイズ", makeEl("b", null, `${stage.size.rows} x ${stage.size.cols}`)),
+      makeInfoRow("入力モード", makeEl("b", null, modeLabel))
+    );
 
-    function row(label, valueNode) {
-      const wrap = makeEl("div", "kvRow");
-      const dt = makeEl("dt", null, label);
-      const dd = makeEl("dd");
-      dd.appendChild(valueNode);
-      append(wrap, dt, dd);
-      return wrap;
-    }
-
-    const v1 = makeEl("b", null, st.label);
-    const v2 = makeEl("b", null, `${st.size.rows} x ${st.size.cols}`);
-    const v3 = makeEl("b", null, modeLabel);
-
-    append(dl, row("難易度", v1), row("マップサイズ", v2), row("入力モード", v3));
-    append(block, title, dl);
+    append(block, title, list);
     infoEl.appendChild(block);
   }
 
-  function matchesMedia(q) {
-    return typeof window.matchMedia === "function" && window.matchMedia(q).matches;
+  function matchesMedia(query) {
+    return typeof window.matchMedia === "function" && window.matchMedia(query).matches;
   }
 
   function isMobileLikeDevice() {
     return matchesMedia("(max-width: 820px)") || matchesMedia("(pointer: coarse)");
+  }
+
+  function getOpsItems(inputMode, isMobile) {
+    if (inputMode === "cycle") {
+      if (isMobile) {
+        return [
+          "タップ：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
+          "長押し：地雷確率を表示（周囲に床がある壁マス）",
+        ];
+      }
+      return [
+        "左クリック：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
+        "右クリック：タイルを戻す（壁→8→7→6→…→⚑→壁）",
+        "キーボード：0-8で数字入力／Fで⚑／W or ?で壁",
+        "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
+      ];
+    }
+
+    if (isMobile) {
+      return [
+        "タップ/ドラッグ：選択タイルで塗る",
+        "長押し：地雷確率を表示（周囲に床がある壁マス）",
+      ];
+    }
+
+    return [
+      "左クリック/左ドラッグ：選択タイルで塗る",
+      "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
+      "ホイール, カーソルキー（↑↓←→）：タイル切替",
+      "キーボード：0-8で床／Fで⚑／W or ?で壁",
+      "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
+    ];
   }
 
   function renderOpsInfo(ctx) {
@@ -242,39 +290,17 @@
 
     const isCycle = inputModeEl.value === "cycle";
     const isMobile = isMobileLikeDevice();
+    const items = getOpsItems(inputModeEl.value, isMobile);
 
     const title = makeEl("b", null, isCycle ? "操作方法（サイクル）" : "操作方法（ペイント）");
-    const ul = makeEl("ul", "opsList");
+    const list = makeEl("ul", "opsList");
 
-    const items = isCycle
-      ? isMobile
-        ? [
-          "タップ：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
-          "長押し：地雷確率を表示（周囲に床がある壁マス）",
-        ]
-        : [
-          "左クリック：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
-          "右クリック：タイルを戻す（壁→8→7→6→…→⚑→壁）",
-          "キーボード：0-8で数字入力／Fで⚑／W or ?で壁",
-          "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
-        ]
-      : isMobile
-        ? [
-          "タップ/ドラッグ：選択タイルで塗る",
-          "長押し：地雷確率を表示（周囲に床がある壁マス）",
-        ]
-        : [
-          "左クリック/左ドラッグ：選択タイルで塗る",
-          "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
-          "ホイール, カーソルキー（↑↓←→）：タイル切替",
-          "キーボード：0-8で床／Fで⚑／W or ?で壁",
-          "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
-        ];
+    for (const item of items) {
+      list.appendChild(makeEl("li", null, item));
+    }
 
-    for (const t of items) ul.appendChild(makeEl("li", null, t));
-    append(opsInfoEl, title, ul);
+    append(opsInfoEl, title, list);
   }
-
 
   function setInputModeData(ctx) {
     try {
@@ -301,28 +327,38 @@
     root.style.setProperty("--axisW", "22px");
     root.style.setProperty("--axisH", "18px");
 
-    const cs = getComputedStyle(scroller);
-    const padL = parseFloat(cs.paddingLeft) || 0;
-    const padR = parseFloat(cs.paddingRight) || 0;
-    const availW = scroller.clientWidth - padL - padR;
+    const computed = getComputedStyle(scroller);
+    const padL = parseFloat(computed.paddingLeft) || 0;
+    const padR = parseFloat(computed.paddingRight) || 0;
+    const availableWidth = scroller.clientWidth - padL - padR;
 
-    const gap = parseFloat(getComputedStyle(root).getPropertyValue("--gap")) || 2;
-    const axisW = parseFloat(getComputedStyle(root).getPropertyValue("--axisW")) || 22;
+    const rootStyle = getComputedStyle(root);
+    const gap = parseFloat(rootStyle.getPropertyValue("--gap")) || 2;
+    const axisW = parseFloat(rootStyle.getPropertyValue("--axisW")) || 22;
     const cols = Math.max(1, Number(ctx?.state?.cols || 1));
 
-    const cellW = (availW - axisW - gap - (cols - 1) * gap) / cols;
+    const cellWidth = (availableWidth - axisW - gap - (cols - 1) * gap) / cols;
+    if (!Number.isFinite(cellWidth)) return;
 
-    if (!Number.isFinite(cellW)) return;
-
-    let cell = Math.floor(cellW);
-    cell = Math.max(12, Math.min(34, cell));
+    const cell = Math.max(12, Math.min(34, Math.floor(cellWidth)));
     root.style.setProperty("--cell", `${cell}px`);
   }
 
   function syncMobilePaintControls(ctx) {
     const root = document.documentElement;
-    const { toolboxControlsEl, mobilePaintControlsEl, toolboxEl, toolMetaEl, opsInfoEl, inputModeEl, btnReset } = ctx.els;
-    if (!root || !toolboxControlsEl || !mobilePaintControlsEl || !toolboxEl || !toolMetaEl || !opsInfoEl || !inputModeEl || !btnReset) return;
+    const {
+      toolboxControlsEl,
+      mobilePaintControlsEl,
+      toolboxEl,
+      toolMetaEl,
+      opsInfoEl,
+      inputModeEl,
+      btnReset,
+    } = ctx.els;
+
+    if (!root || !toolboxControlsEl || !mobilePaintControlsEl || !toolboxEl || !toolMetaEl || !opsInfoEl || !inputModeEl || !btnReset) {
+      return;
+    }
 
     const toolboxHeadEl = toolboxEl.querySelector(".toolboxHead");
     const historyBtnsEl = toolboxControlsEl.querySelector("#historyBtns");
@@ -330,38 +366,37 @@
     const resetBtnsEl = btnReset.closest(".btns");
     if (!toolboxHeadEl || !historyBtnsEl || !panelEl || !resetBtnsEl) return;
 
-    const supportsBottomControls = inputModeEl.value === "paint" || inputModeEl.value === "cycle";
-    const shouldMove = isMobileLikeDevice() && supportsBottomControls;
-
+    const shouldMove = isMobileLikeDevice() && (inputModeEl.value === "paint" || inputModeEl.value === "cycle");
     root.dataset.mobileUi = shouldMove ? "1" : "0";
 
     if (shouldMove) {
       if (toolMetaEl.parentElement !== mobilePaintControlsEl) {
         mobilePaintControlsEl.insertBefore(toolMetaEl, mobilePaintControlsEl.firstChild || null);
       }
-      if (toolboxControlsEl.parentElement !== mobilePaintControlsEl) mobilePaintControlsEl.appendChild(toolboxControlsEl);
-
-      if (!resetBtnsEl.classList.contains("mobileResetBtns")) resetBtnsEl.classList.add("mobileResetBtns");
-      if (resetBtnsEl.parentElement !== toolboxControlsEl || resetBtnsEl.previousElementSibling !== historyBtnsEl) toolboxControlsEl.appendChild(resetBtnsEl);
+      if (toolboxControlsEl.parentElement !== mobilePaintControlsEl) {
+        mobilePaintControlsEl.appendChild(toolboxControlsEl);
+      }
+      if (!resetBtnsEl.classList.contains("mobileResetBtns")) {
+        resetBtnsEl.classList.add("mobileResetBtns");
+      }
+      if (resetBtnsEl.parentElement !== toolboxControlsEl || resetBtnsEl.previousElementSibling !== historyBtnsEl) {
+        toolboxControlsEl.appendChild(resetBtnsEl);
+      }
       return;
     }
 
     if (toolMetaEl.parentElement !== toolboxHeadEl) toolboxHeadEl.appendChild(toolMetaEl);
     if (toolboxControlsEl.parentElement !== toolboxEl) toolboxEl.insertBefore(toolboxControlsEl, opsInfoEl);
-
     if (resetBtnsEl.classList.contains("mobileResetBtns")) resetBtnsEl.classList.remove("mobileResetBtns");
     if (resetBtnsEl.parentElement !== panelEl) panelEl.appendChild(resetBtnsEl);
   }
 
   function updateModeUI(ctx) {
-    const { toolGridEl, toolMetaEl } = ctx.els;
-    if (ctx.els.inputModeEl.value === "cycle") {
-      toolGridEl.style.display = "none";
-      toolMetaEl.style.display = "none";
-    } else {
-      toolGridEl.style.display = "";
-      toolMetaEl.style.display = "";
-    }
+    const { toolGridEl, toolMetaEl, inputModeEl } = ctx.els;
+    const isCycle = inputModeEl.value === "cycle";
+
+    toolGridEl.style.display = isCycle ? "none" : "";
+    toolMetaEl.style.display = isCycle ? "none" : "";
 
     setInputModeData(ctx);
     updateHistoryButtonLabels(ctx);
@@ -373,8 +408,9 @@
   function syncSolveButtonWidth(ctx) {
     const { btnSolve, btnReset } = ctx.els;
     if (!btnSolve || !btnReset) return;
-    const w = Math.round(btnReset.getBoundingClientRect().width);
-    if (w > 0) btnSolve.style.width = `${w}px`;
+
+    const width = Math.round(btnReset.getBoundingClientRect().width);
+    if (width > 0) btnSolve.style.width = `${width}px`;
   }
 
   function clearSuggestVisualsOnly(ctx) {
@@ -383,14 +419,14 @@
 
     hideProbTip(ctx);
     for (const el of boardEl.querySelectorAll(".cell")) {
-      const hadCon = el.classList.contains("contradiction");
+      const hadContradiction = el.classList.contains("contradiction");
 
       if (el.dataset.hintMine === "1") {
         const r = Number(el.dataset.r);
         const c = Number(el.dataset.c);
         setCellVisual(ctx, el, grid[r][c]);
         delete el.dataset.hintMine;
-        if (hadCon) el.classList.add("contradiction");
+        if (hadContradiction) el.classList.add("contradiction");
       }
 
       el.classList.remove("suggest-safe", "suggest-mine", "suggest-reco");
@@ -431,7 +467,6 @@
     clearContradictionsUI(ctx);
     hideToast(ctx);
     hideProbTip(ctx);
-
     syncResponsiveBoard(ctx);
 
     boardEl.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
