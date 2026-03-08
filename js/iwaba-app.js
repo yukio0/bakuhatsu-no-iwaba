@@ -53,7 +53,6 @@
         changed: false,
         pointerId: null,
         mode: null,
-        rightAction: null,
         lastStamp: null,
         lastRightKey: null,
         preserveUI: false,

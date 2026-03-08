@@ -41,7 +41,6 @@
   }
 
   function toolToIndex(ctx, t) {
-    const { TOOL_CYCLE_LEN } = ctx.consts;
     if (t.kind === "wall") return 0;
     if (t.kind === "flag") return 1;
     return 2 + t.num;
@@ -150,14 +149,7 @@
     ctx.state.cols = snap.cols;
     ctx.state.grid = cloneGrid(snap.grid);
 
-    ctx.state.hasContradictionNow = false;
-    ctx.state.lastSuggestMines = new Set();
-    ctx.state.lastSuggestSafes = new Set();
-    ctx.state.lastSuggestRecos = new Set();
-
-    IWABA.view.clearContradictionsUI(ctx);
-    IWABA.view.hideToast(ctx);
-    IWABA.view.hideProbTip(ctx);
+    resetAnalysisUI(ctx);
 
     IWABA.view.renderStageInfo(ctx);
     IWABA.view.renderBoard(ctx);
@@ -170,6 +162,20 @@
     h.past = [];
     h.future = [];
     updateHistoryButtons(ctx);
+  }
+
+  function resetSuggestionState(ctx) {
+    ctx.state.lastSuggestMines = new Set();
+    ctx.state.lastSuggestSafes = new Set();
+    ctx.state.lastSuggestRecos = new Set();
+  }
+
+  function resetAnalysisUI(ctx) {
+    ctx.state.hasContradictionNow = false;
+    resetSuggestionState(ctx);
+    IWABA.view.clearContradictionsUI(ctx);
+    IWABA.view.hideToast(ctx);
+    IWABA.view.hideProbTip(ctx);
   }
 
   function undo(ctx) {
@@ -214,14 +220,7 @@
 
     applyStartCellBlank(ctx);
 
-    ctx.state.hasContradictionNow = false;
-    IWABA.view.clearContradictionsUI(ctx);
-    IWABA.view.hideToast(ctx);
-    IWABA.view.hideProbTip(ctx);
-
-    ctx.state.lastSuggestMines = new Set();
-    ctx.state.lastSuggestSafes = new Set();
-    ctx.state.lastSuggestRecos = new Set();
+    resetAnalysisUI(ctx);
     updateHistoryButtons(ctx);
   }
 
@@ -229,12 +228,13 @@
     IWABA.view.hideProbTip(ctx);
     if (preserveUI) return;
 
-    ctx.state.hasContradictionNow = false;
-    IWABA.view.clearContradictionsUI(ctx);
-    IWABA.view.hideToast(ctx);
-    ctx.state.lastSuggestMines = new Set();
-    ctx.state.lastSuggestSafes = new Set();
-    ctx.state.lastSuggestRecos = new Set();
+    resetAnalysisUI(ctx);
+  }
+
+  function setWall(ctx, st) {
+    const { CellState } = ctx.consts;
+    st.state = CellState.WALL;
+    st.num = 0;
   }
 
   function setFlag(ctx, st) {
@@ -242,10 +242,11 @@
     st.state = CellState.FLAG;
     st.num = 0;
   }
-  function clearFlag(ctx, st) {
+
+  function setRevealed(ctx, st, num = 0) {
     const { CellState } = ctx.consts;
-    st.state = CellState.WALL;
-    st.num = 0;
+    st.state = CellState.REVEALED;
+    st.num = num;
   }
 
   function isSameCellState(st, state, num) {
@@ -259,8 +260,7 @@
     if (tool.kind === "wall") {
       if (isSameCellState(st, CellState.WALL, 0)) return false;
       markDirty(ctx, { preserveUI });
-      st.state = CellState.WALL;
-      st.num = 0;
+      setWall(ctx, st);
       return true;
     }
     if (tool.kind === "flag") {
@@ -271,8 +271,7 @@
     }
     if (isSameCellState(st, CellState.REVEALED, tool.num)) return false;
     markDirty(ctx, { preserveUI });
-    st.state = CellState.REVEALED;
-    st.num = tool.num;
+    setRevealed(ctx, st, tool.num);
     return true;
   }
 
@@ -286,14 +285,12 @@
       return true;
     }
     if (st.state === CellState.FLAG) {
-      st.state = CellState.REVEALED;
-      st.num = 0;
+      setRevealed(ctx, st, 0);
       return true;
     }
     if (st.num < 8) st.num++;
     else {
-      st.state = CellState.WALL;
-      st.num = 0;
+      setWall(ctx, st);
     }
     return true;
   }
@@ -304,13 +301,11 @@
 
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
-      st.state = CellState.REVEALED;
-      st.num = 8;
+      setRevealed(ctx, st, 8);
       return true;
     }
     if (st.state === CellState.FLAG) {
-      st.state = CellState.WALL;
-      st.num = 0;
+      setWall(ctx, st);
       return true;
     }
     if (st.num > 0) {
@@ -329,15 +324,13 @@
     if (stamp === "wall") {
       if (isSameCellState(st, CellState.WALL, 0)) return false;
       markDirty(ctx, { preserveUI });
-      st.state = CellState.WALL;
-      st.num = 0;
+      setWall(ctx, st);
       return true;
     }
     if (stamp === "blank") {
       if (isSameCellState(st, CellState.REVEALED, 0)) return false;
       markDirty(ctx, { preserveUI });
-      st.state = CellState.REVEALED;
-      st.num = 0;
+      setRevealed(ctx, st, 0);
       return true;
     }
     if (isSameCellState(st, CellState.FLAG, 0)) return false;
@@ -452,11 +445,7 @@
 
   function clearHints(ctx) {
     IWABA.view.hideProbTip(ctx);
-
-    ctx.state.lastSuggestMines = new Set();
-    ctx.state.lastSuggestSafes = new Set();
-    ctx.state.lastSuggestRecos = new Set();
-
+    resetSuggestionState(ctx);
     IWABA.view.clearSuggestVisualsOnly(ctx);
   }
 

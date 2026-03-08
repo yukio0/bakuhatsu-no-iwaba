@@ -8,32 +8,22 @@
     return !!(ctx.els.autoSolveEl && ctx.els.autoSolveEl.checked);
   }
 
-  function maybeAutoSolveOnClick(ctx) {
+  function maybeAutoSolve(ctx, { requireChange = false, changed = true } = {}) {
     if (!autoSolveEnabled(ctx)) return;
-    IWABA.logic.solveDeterministic(ctx);
-  }
-
-  function maybeAutoSolveOnDragEnd(ctx, changed) {
-    if (!autoSolveEnabled(ctx)) return;
-    if (!changed) return;
-    IWABA.logic.solveDeterministic(ctx);
-  }
-
-  function maybeAutoSolveNow(ctx) {
-    if (!autoSolveEnabled(ctx)) return;
+    if (requireChange && !changed) return;
     IWABA.logic.solveDeterministic(ctx);
   }
 
   function runUndo(ctx) {
     const changed = IWABA.logic.undo(ctx);
     if (!changed) return;
-    maybeAutoSolveNow(ctx);
+    maybeAutoSolve(ctx);
   }
 
   function runRedo(ctx) {
     const changed = IWABA.logic.redo(ctx);
     if (!changed) return;
-    maybeAutoSolveNow(ctx);
+    maybeAutoSolve(ctx);
   }
 
   function setDarkMode(ctx, on) {
@@ -65,7 +55,7 @@
     IWABA.view.renderBoard(ctx);
     bindCells(ctx);
     IWABA.view.updateModeUI(ctx);
-    maybeAutoSolveNow(ctx);
+    maybeAutoSolve(ctx);
   }
 
   function cellFromPoint(ctx, x, y) {
@@ -88,6 +78,29 @@
       delete cell.dataset.longPressTimerId;
       delete cell.dataset.longPressStartX;
       delete cell.dataset.longPressStartY;
+    }
+
+    function consumeLongPressProb(cell) {
+      if (cell.dataset.longPressProb !== "1") return false;
+      delete cell.dataset.longPressProb;
+      return true;
+    }
+
+    function commitCellChange(cell, changeFn) {
+      const r = Number(cell.dataset.r);
+      const c = Number(cell.dataset.c);
+      const snap = IWABA.logic.historySnapshot(ctx);
+      const changed = changeFn(r, c);
+      if (!changed) return false;
+
+      IWABA.logic.commitHistorySnapshot(ctx, snap);
+      IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
+      maybeAutoSolve(ctx);
+      return true;
+    }
+
+    function applyToolByKey(cell, tool, preserveUI) {
+      commitCellChange(cell, (r, c) => IWABA.logic.applyTool(ctx, r, c, tool, { preserveUI }));
     }
 
     for (const cell of boardEl.querySelectorAll(".cell")) {
@@ -125,87 +138,49 @@
       const cancelLongPress = () => clearLongPressTimer(cell);
       cell.addEventListener("pointerup", cancelLongPress);
       cell.addEventListener("pointercancel", cancelLongPress);
-      cell.addEventListener("click", (e) => {
-        if (ctx.els.inputModeEl.value !== "cycle") return;
-        e.preventDefault();
 
-        if (cell.dataset.longPressProb === "1") {
-          delete cell.dataset.longPressProb;
-          return;
-        }
+      cell.addEventListener("click", (e) => {
+        if (!isCycleMode(ctx)) return;
+        e.preventDefault();
+        if (consumeLongPressProb(cell)) return;
 
         IWABA.view.hideProbTip(ctx);
-        const r = Number(cell.dataset.r);
-        const c = Number(cell.dataset.c);
-        const snap = IWABA.logic.historySnapshot(ctx);
-        const changed = IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true });
-        if (!changed) return;
-        IWABA.logic.commitHistorySnapshot(ctx, snap);
-        IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
-        maybeAutoSolveOnClick(ctx);
+        commitCellChange(cell, (r, c) => IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true }));
       });
 
       cell.addEventListener("contextmenu", (e) => {
         e.preventDefault();
-        if (ctx.els.inputModeEl.value !== "cycle") return;
-        if (cell.dataset.longPressProb === "1") {
-          delete cell.dataset.longPressProb;
-          return;
-        }
+        if (!isCycleMode(ctx)) return;
+        if (consumeLongPressProb(cell)) return;
         if (e.pointerType === "touch" || e.pointerType === "pen") return;
 
         IWABA.view.hideProbTip(ctx);
-        const r = Number(cell.dataset.r);
-        const c = Number(cell.dataset.c);
-        const snap = IWABA.logic.historySnapshot(ctx);
-        const changed = IWABA.logic.cycleCellBackward(ctx, r, c, { preserveUI: true });
-        if (!changed) return;
-        IWABA.logic.commitHistorySnapshot(ctx, snap);
-        IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
-        maybeAutoSolveOnClick(ctx);
+        commitCellChange(cell, (r, c) => IWABA.logic.cycleCellBackward(ctx, r, c, { preserveUI: true }));
       });
 
       cell.addEventListener("keydown", (e) => {
         const k = e.key.toLowerCase();
-        const preserve = isCycleMode(ctx);
-        const r = Number(cell.dataset.r);
-        const c = Number(cell.dataset.c);
+        const preserveUI = isCycleMode(ctx);
 
         if (k >= "0" && k <= "8") {
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          const snap = IWABA.logic.historySnapshot(ctx);
-          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.num(Number(k)), { preserveUI: preserve });
-          if (!changed) return;
-          IWABA.logic.commitHistorySnapshot(ctx, snap);
-          IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
-          maybeAutoSolveOnClick(ctx);
+          applyToolByKey(cell, ctx.consts.Tool.num(Number(k)), preserveUI);
           return;
         }
         if (k === "f") {
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          const snap = IWABA.logic.historySnapshot(ctx);
-          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.flag(), { preserveUI: preserve });
-          if (!changed) return;
-          IWABA.logic.commitHistorySnapshot(ctx, snap);
-          IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
-          maybeAutoSolveOnClick(ctx);
+          applyToolByKey(cell, ctx.consts.Tool.flag(), preserveUI);
           return;
         }
         if (k === "w" || k === "?") {
           e.preventDefault();
           e.stopPropagation();
           IWABA.view.hideProbTip(ctx);
-          const snap = IWABA.logic.historySnapshot(ctx);
-          const changed = IWABA.logic.applyTool(ctx, r, c, ctx.consts.Tool.wall(), { preserveUI: preserve });
-          if (!changed) return;
-          IWABA.logic.commitHistorySnapshot(ctx, snap);
-          IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
-          maybeAutoSolveOnClick(ctx);
-          return;
+          applyToolByKey(cell, ctx.consts.Tool.wall(), preserveUI);
         }
       });
     }
@@ -278,7 +253,6 @@
       ctx.state.drag.mode = "left";
       ctx.state.drag.lastStamp = stamp;
       ctx.state.drag.lastRightKey = null;
-      ctx.state.drag.rightAction = null;
       ctx.state.drag.rightStamp = null;
       ctx.state.drag.preserveUI = false;
 
@@ -333,7 +307,7 @@
       IWABA.logic.clearHints(ctx);
       IWABA.view.renderBoard(ctx);
       bindCells(ctx);
-      maybeAutoSolveNow(ctx);
+      maybeAutoSolve(ctx);
     });
 
     if (btnUndo) btnUndo.addEventListener("click", () => runUndo(ctx));
@@ -397,7 +371,6 @@
       ctx.state.drag.mode = canLongPressForProb ? "leftPending" : "left";
       ctx.state.drag.lastStamp = null;
       ctx.state.drag.lastRightKey = null;
-      ctx.state.drag.rightAction = null;
       ctx.state.drag.rightStamp = null;
       ctx.state.drag.preserveUI = false;
       if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
@@ -486,7 +459,6 @@
       ctx.state.drag.changed = false;
       ctx.state.drag.pointerId = null;
       ctx.state.drag.mode = null;
-      ctx.state.drag.rightAction = null;
       ctx.state.drag.rightStamp = null;
       ctx.state.drag.lastStamp = null;
       ctx.state.drag.lastRightKey = null;
@@ -497,7 +469,7 @@
 
       try { boardEl.releasePointerCapture(e.pointerId); } catch { }
 
-      maybeAutoSolveOnDragEnd(ctx, changed);
+      maybeAutoSolve(ctx, { requireChange: true, changed });
     }
     boardEl.addEventListener("pointerup", endDrag);
     boardEl.addEventListener("pointercancel", endDrag);

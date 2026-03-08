@@ -39,6 +39,6 @@
     WALL_CHAR,
     TOOL_DEFS,
     TOOL_GRID_COLS: 6,
-    TOOL_CYCLE_LEN: 11,
+    TOOL_CYCLE_LEN: TOOL_DEFS.length,
   };
 })();

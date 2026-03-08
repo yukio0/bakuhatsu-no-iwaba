@@ -134,8 +134,6 @@
   function updateCurrentToolPill(ctx) {
     const { currentToolPillEl } = ctx.els;
     const { currentTool } = ctx.state;
-    const hideShortcuts = isMobileLikeDevice();
-
     clearEl(currentToolPillEl);
     currentToolPillEl.appendChild(document.createTextNode("現在："));
 
@@ -150,7 +148,7 @@
   }
 
   function renderTools(ctx) {
-    const { toolGridEl, inputModeEl } = ctx.els;
+    const { toolGridEl } = ctx.els;
     const { TOOL_DEFS } = ctx.consts;
     const { currentTool } = ctx.state;
 
@@ -230,9 +228,12 @@
     infoEl.appendChild(block);
   }
 
+  function matchesMedia(q) {
+    return typeof window.matchMedia === "function" && window.matchMedia(q).matches;
+  }
+
   function isMobileLikeDevice() {
-    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
-    return mm("(max-width: 820px)") || mm("(pointer: coarse)");
+    return matchesMedia("(max-width: 820px)") || matchesMedia("(pointer: coarse)");
   }
 
   function renderOpsInfo(ctx) {
@@ -288,12 +289,7 @@
     const scroller = ctx?.els?.boardScrollerEl;
     if (!root || !scroller) return;
 
-    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
-    const coarse = mm("(pointer: coarse)");
-    const small = mm("(max-width: 820px)");
-    const doFit = coarse || small;
-
-    if (!doFit) {
+    if (!isMobileLikeDevice()) {
       root.style.removeProperty("--cell");
       root.style.removeProperty("--gap");
       root.style.removeProperty("--axisW");
@@ -334,10 +330,8 @@
     const resetBtnsEl = btnReset.closest(".btns");
     if (!toolboxHeadEl || !historyBtnsEl || !panelEl || !resetBtnsEl) return;
 
-    const mm = (q) => (typeof window.matchMedia === "function" ? window.matchMedia(q).matches : false);
-    const isMobile = mm("(max-width: 820px)") || mm("(pointer: coarse)");
     const supportsBottomControls = inputModeEl.value === "paint" || inputModeEl.value === "cycle";
-    const shouldMove = isMobile && supportsBottomControls;
+    const shouldMove = isMobileLikeDevice() && supportsBottomControls;
 
     root.dataset.mobileUi = shouldMove ? "1" : "0";
 
