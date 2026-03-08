@@ -344,6 +344,15 @@
     return ctx.solver.validateContradictions(ctx.state.grid, ctx.state.rows, ctx.state.cols, extraMines, extraSafes);
   }
 
+  function formatContradictionMessage(ctx, item) {
+    const p = cellCoord(ctx, item.r, item.c);
+    if (item.kind === "tooManyFlags") {
+      return `${p} の数字は「${item.n}」ですが、周囲に地雷確定（旗）が ${item.flagged} 個あります。`;
+    }
+    const maxMines = item.flagged + item.walls;
+    return `${p} の数字は「${item.n}」ですが、周囲の「地雷確定（旗）${item.flagged} 個 + まだ地雷になりうる壁 ${item.walls} 個」を全部合わせても最大 ${maxMines} 個です。`;
+  }
+
   function renderContradictionsUI(ctx, extraMines = null, extraSafes = null) {
     IWABA.view.clearContradictionsUI(ctx);
 
@@ -358,7 +367,8 @@
       if (el) el.classList.add("contradiction");
     }
 
-    const top = cons.slice(0, 4);
+    const maxVisible = 4;
+    const top = cons.slice(0, maxVisible);
 
     IWABA.view.showToast(ctx, (root) => {
       const closeBtn = IWABA.view.makeEl("button", "toastClose");
@@ -366,26 +376,28 @@
       closeBtn.setAttribute("aria-label", "close");
       closeBtn.textContent = "×";
 
-      const title = IWABA.view.makeEl("b", null, "矛盾が見つかりました");
+      const title = IWABA.view.makeEl("b", null, "この盤面は矛盾しています");
+      const lead = IWABA.view.makeEl(
+        "div",
+        "muted mt6",
+        "赤枠のマスは、周囲の状況が数字と一致していません。近くの入力を見直してください。"
+      );
 
       const ul = IWABA.view.makeEl("ul", "toastList");
       for (const it of top) {
-        const p = cellCoord(ctx, it.r, it.c);
-        let msg = "";
-        if (it.kind === "tooManyFlags") {
-          msg = `${p} の「${it.n}」：地雷が ${it.flagged} 個（多すぎ）`;
-        } else {
-          msg = `${p} の「${it.n}」：地雷${it.flagged}+候補${it.walls} < ${it.n}（足りない）`;
-        }
-        ul.appendChild(IWABA.view.makeEl("li", null, msg));
+        ul.appendChild(IWABA.view.makeEl("li", null, formatContradictionMessage(ctx, it)));
       }
 
-      IWABA.view.append(root, closeBtn, title, ul);
+      IWABA.view.append(root, closeBtn, title, lead, ul);
 
       if (cons.length > top.length) {
-        root.appendChild(IWABA.view.makeEl("div", "muted mt6", `他 ${cons.length - top.length} 件…`));
+        root.appendChild(
+          IWABA.view.makeEl("div", "muted mt6", `表示しきれない矛盾が、他に ${cons.length - top.length} 件あります。`)
+        );
       }
-      root.appendChild(IWABA.view.makeEl("div", "muted mt6", "赤枠の数字マス周辺を見直してください。"));
+      root.appendChild(
+        IWABA.view.makeEl("div", "muted mt6", "数字・旗・未確定の壁の入力ミスがないか、赤枠の周囲を順に確認してください。")
+      );
     });
 
     return true;
