@@ -23,14 +23,17 @@
     return t.kind === "num" ? `num:${t.num}` : t.kind;
   }
 
-  function syncToolCursorFromCurrent(ctx) {
+  function findToolIndex(ctx, t) {
     const { TOOL_DEFS } = ctx.consts;
     for (let i = 0; i < TOOL_DEFS.length; i++) {
-      if (toolEquals(TOOL_DEFS[i].tool, ctx.state.currentTool)) {
-        ctx.state.toolCursorIndex = i;
-        return;
-      }
+      if (toolEquals(TOOL_DEFS[i].tool, t)) return i;
     }
+    return -1;
+  }
+
+  function syncToolCursorFromCurrent(ctx) {
+    const idx = findToolIndex(ctx, ctx.state.currentTool);
+    if (idx >= 0) ctx.state.toolCursorIndex = idx;
   }
 
   function setCurrentTool(ctx, t) {
@@ -40,21 +43,12 @@
     IWABA.view.renderTools(ctx);
   }
 
-  function toolToIndex(ctx, t) {
-    if (t.kind === "wall") return 0;
-    if (t.kind === "flag") return 1;
-    return 2 + t.num;
-  }
-  function indexToTool(ctx, i) {
-    const { Tool, TOOL_CYCLE_LEN } = ctx.consts;
-    const idx = ((i % TOOL_CYCLE_LEN) + TOOL_CYCLE_LEN) % TOOL_CYCLE_LEN;
-    if (idx === 0) return Tool.wall();
-    if (idx === 1) return Tool.flag();
-    return Tool.num(idx - 2);
-  }
   function bumpTool(ctx, delta) {
-    const i = toolToIndex(ctx, ctx.state.currentTool);
-    setCurrentTool(ctx, indexToTool(ctx, i + delta));
+    const { TOOL_DEFS, TOOL_CYCLE_LEN } = ctx.consts;
+    const base = findToolIndex(ctx, ctx.state.currentTool);
+    const i = base >= 0 ? base : 0;
+    const idx = (((i + delta) % TOOL_CYCLE_LEN) + TOOL_CYCLE_LEN) % TOOL_CYCLE_LEN;
+    setCurrentTool(ctx, TOOL_DEFS[idx].tool);
   }
 
   function moveToolCursorByArrow(ctx, key) {
@@ -461,6 +455,103 @@
     IWABA.view.clearSuggestVisualsOnly(ctx);
   }
 
+  const PROB_TOTAL_BUDGET_MS = 80;
+
+  function commitSuggestions(ctx, mines, safes, recos) {
+    ctx.state.lastSuggestMines = new Set(mines);
+    ctx.state.lastSuggestSafes = new Set(safes);
+    ctx.state.lastSuggestRecos = new Set(recos);
+    IWABA.view.applySuggestUI(ctx, ctx.state.lastSuggestMines, ctx.state.lastSuggestSafes, ctx.state.lastSuggestRecos);
+  }
+
+  function propagateForcedCells(ctx, forcedMines, forcedSafes) {
+    const { CellState } = ctx.consts;
+    let anyChange = false;
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+
+      for (let r = 0; r < ctx.state.rows; r++) {
+        for (let c = 0; c < ctx.state.cols; c++) {
+          const st = ctx.state.grid[r][c];
+          if (st.state !== CellState.REVEALED) continue;
+
+          const n = st.num;
+          const { flagged: mines, unknownWalls } = ctx.solver.classifyNeighbors(
+            ctx.state.grid, r, c, ctx.state.rows, ctx.state.cols, forcedMines, forcedSafes
+          );
+
+          const need = n - mines;
+
+          if (need < 0 || need > unknownWalls.length) return "contradiction";
+
+          if (need === 0 && unknownWalls.length > 0) {
+            for (const [rr, cc] of unknownWalls) {
+              const key = ctx.utils.cellKey(rr, cc);
+              if (!forcedSafes.has(key)) {
+                forcedSafes.add(key);
+                changed = true;
+                anyChange = true;
+              }
+            }
+          } else if (need === unknownWalls.length && need > 0) {
+            for (const [rr, cc] of unknownWalls) {
+              const key = ctx.utils.cellKey(rr, cc);
+              if (!forcedMines.has(key)) {
+                forcedMines.add(key);
+                changed = true;
+                anyChange = true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return anyChange;
+  }
+
+  function refineByProbability(ctx, forcedMines, forcedSafes) {
+    const startBudget = performance.now();
+    let anyChange = false;
+
+    const cand = ctx.solver.collectCandidateWalls(
+      ctx.state.grid, ctx.state.rows, ctx.state.cols,
+      ctx.utils.neighbors, forcedMines, forcedSafes
+    );
+
+    for (const [wr, wc] of cand) {
+      if (performance.now() - startBudget > PROB_TOTAL_BUDGET_MS) break;
+
+      const key = ctx.utils.cellKey(wr, wc);
+      if (forcedMines.has(key) || forcedSafes.has(key)) continue;
+
+      const res = computeMineProbabilityForWall(ctx, wr, wc, forcedMines, forcedSafes);
+      if (!res || res.kind === "contradiction") continue;
+
+      if (res.kind === "exact") {
+        if (res.mine === 0) {
+          forcedSafes.add(key);
+          anyChange = true;
+        } else if (res.mine === res.total) {
+          forcedMines.add(key);
+          anyChange = true;
+        }
+      } else {
+        if (res.max <= 0) {
+          forcedSafes.add(key);
+          anyChange = true;
+        } else if (res.min >= 1) {
+          forcedMines.add(key);
+          anyChange = true;
+        }
+      }
+    }
+
+    return anyChange;
+  }
+
   function solveDeterministic(ctx) {
     IWABA.view.clearContradictionsUI(ctx);
     IWABA.view.hideToast(ctx);
@@ -469,124 +560,22 @@
     ctx.state.hasContradictionNow = renderContradictionsUI(ctx);
     if (ctx.state.hasContradictionNow) return;
 
-    const { CellState } = ctx.consts;
     const forcedMines = new Set();
     const forcedSafes = new Set();
-
-    const PROB_TOTAL_BUDGET_MS = 80;
 
     let outerChanged = true;
     while (outerChanged) {
       outerChanged = false;
 
-      let changed = true;
-      while (changed) {
-        changed = false;
-
-        for (let r = 0; r < ctx.state.rows; r++) {
-          for (let c = 0; c < ctx.state.cols; c++) {
-            const st = ctx.state.grid[r][c];
-            if (st.state !== CellState.REVEALED) continue;
-
-            const n = st.num;
-            const ns = neighbors(ctx, r, c);
-
-            let mines = 0;
-            const unknownWalls = [];
-
-            for (const [rr, cc] of ns) {
-              const s2 = ctx.state.grid[rr][cc];
-              const key = `${rr},${cc}`;
-
-              const isMine = s2.state === CellState.FLAG || forcedMines.has(key);
-              const isSafe = forcedSafes.has(key);
-
-              if (isMine) mines++;
-              else if (s2.state === CellState.WALL && !isSafe) unknownWalls.push([rr, cc]);
-            }
-
-            const need = n - mines;
-
-            if (need < 0 || need > unknownWalls.length) {
-              ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes);
-
-              ctx.state.lastSuggestMines = new Set(forcedMines);
-              ctx.state.lastSuggestSafes = new Set(forcedSafes);
-              ctx.state.lastSuggestRecos = new Set();
-              IWABA.view.applySuggestUI(ctx, ctx.state.lastSuggestMines, ctx.state.lastSuggestSafes, ctx.state.lastSuggestRecos);
-              return;
-            }
-
-            if (need === 0 && unknownWalls.length > 0) {
-              for (const [rr, cc] of unknownWalls) {
-                const key = `${rr},${cc}`;
-                if (!forcedSafes.has(key)) {
-                  forcedSafes.add(key);
-                  changed = true;
-                  outerChanged = true;
-                }
-              }
-            } else if (need === unknownWalls.length && need > 0) {
-              for (const [rr, cc] of unknownWalls) {
-                const key = `${rr},${cc}`;
-                if (!forcedMines.has(key)) {
-                  forcedMines.add(key);
-                  changed = true;
-                  outerChanged = true;
-                }
-              }
-            }
-          }
-        }
+      const propagated = propagateForcedCells(ctx, forcedMines, forcedSafes);
+      if (propagated === "contradiction") {
+        ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes);
+        commitSuggestions(ctx, forcedMines, forcedSafes, new Set());
+        return;
       }
+      if (propagated) outerChanged = true;
 
-      const startBudget = performance.now();
-
-      const cand = [];
-      const candSet = new Set();
-      for (let r = 0; r < ctx.state.rows; r++) {
-        for (let c = 0; c < ctx.state.cols; c++) {
-          if (ctx.state.grid[r][c].state !== CellState.REVEALED) continue;
-          for (const [rr, cc] of neighbors(ctx, r, c)) {
-            const s2 = ctx.state.grid[rr][cc];
-            const key = `${rr},${cc}`;
-            if (s2.state !== CellState.WALL) continue;
-            if (forcedMines.has(key) || forcedSafes.has(key)) continue;
-            if (!candSet.has(key)) {
-              candSet.add(key);
-              cand.push([rr, cc]);
-            }
-          }
-        }
-      }
-
-      for (const [wr, wc] of cand) {
-        if (performance.now() - startBudget > PROB_TOTAL_BUDGET_MS) break;
-
-        const key = `${wr},${wc}`;
-        if (forcedMines.has(key) || forcedSafes.has(key)) continue;
-
-        const res = computeMineProbabilityForWall(ctx, wr, wc, forcedMines, forcedSafes);
-        if (!res || res.kind === "contradiction") continue;
-
-        if (res.kind === "exact") {
-          if (res.mine === 0) {
-            forcedSafes.add(key);
-            outerChanged = true;
-          } else if (res.mine === res.total) {
-            forcedMines.add(key);
-            outerChanged = true;
-          }
-        } else {
-          if (res.max <= 0) {
-            forcedSafes.add(key);
-            outerChanged = true;
-          } else if (res.min >= 1) {
-            forcedMines.add(key);
-            outerChanged = true;
-          }
-        }
-      }
+      if (refineByProbability(ctx, forcedMines, forcedSafes)) outerChanged = true;
     }
 
     ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes);
@@ -595,12 +584,7 @@
       ? new Set()
       : ctx.solver.computeRecommendations(ctx.state.grid, ctx.state.rows, ctx.state.cols, forcedMines, forcedSafes);
 
-    ctx.state.lastSuggestMines = new Set(forcedMines);
-    ctx.state.lastSuggestSafes = new Set(forcedSafes);
-    ctx.state.lastSuggestRecos = new Set(recos);
-
-    IWABA.view.applySuggestUI(ctx, ctx.state.lastSuggestMines, ctx.state.lastSuggestSafes, ctx.state.lastSuggestRecos);
-    if (ctx.state.hasContradictionNow) return;
+    commitSuggestions(ctx, forcedMines, forcedSafes, recos);
   }
 
   IWABA.logic = {

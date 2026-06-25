@@ -5,13 +5,24 @@
   window.IWABA = window.IWABA || {};
 
   const { CellState } = IWABA.constants;
-  const U = IWABA.utils;
+  const { neighbors, orthoNeighbors, cellKey } = IWABA.utils;
 
-  function neighbors(r, c, rows, cols) {
-    return U.neighbors(r, c, rows, cols);
-  }
-  function orthoNeighbors(r, c, rows, cols) {
-    return U.orthoNeighbors(r, c, rows, cols);
+  function classifyNeighbors(grid, r, c, rows, cols, knownMines = null, knownSafes = null) {
+    let flagged = 0;
+    const unknownWalls = [];
+
+    for (const [rr, cc] of neighbors(r, c, rows, cols)) {
+      const s2 = grid[rr][cc];
+      const key = cellKey(rr, cc);
+
+      const isMine = s2.state === CellState.FLAG || (knownMines && knownMines.has(key));
+      const isSafe = knownSafes && knownSafes.has(key);
+
+      if (isMine) flagged++;
+      else if (s2.state === CellState.WALL && !isSafe) unknownWalls.push([rr, cc]);
+    }
+
+    return { flagged, unknownWalls };
   }
 
   function validateContradictions(grid, rows, cols, extraMines = null, extraSafes = null) {
@@ -22,22 +33,8 @@
         if (st.state !== CellState.REVEALED) continue;
 
         const n = st.num;
-        const ns = neighbors(r, c, rows, cols);
-
-        let flagged = 0;
-        let walls = 0;
-
-        for (const [rr, cc] of ns) {
-          const s2 = grid[rr][cc];
-          const key = `${rr},${cc}`;
-
-          const isMine =
-            s2.state === CellState.FLAG || (extraMines && extraMines.has(key));
-          const isSafe = extraSafes && extraSafes.has(key);
-
-          if (isMine) flagged++;
-          else if (s2.state === CellState.WALL && !isSafe) walls++;
-        }
+        const { flagged, unknownWalls } = classifyNeighbors(grid, r, c, rows, cols, extraMines, extraSafes);
+        const walls = unknownWalls.length;
 
         if (flagged > n) {
           list.push({ r, c, kind: "tooManyFlags", n, flagged, walls });
@@ -62,7 +59,7 @@
     const varMap = new Map();
     const vars = [];
     function addVar(r, c) {
-      const k = `${r},${c}`;
+      const k = cellKey(r, c);
       if (varMap.has(k)) return varMap.get(k);
       const idx = vars.length;
       varMap.set(k, idx);
@@ -74,35 +71,22 @@
     for (const [rr, cc] of touchingRevealed) {
       const n = grid[rr][cc].num;
 
-      let flagged = 0;
-      const unknown = [];
-      for (const [ar, ac] of neighbors(rr, cc, rows, cols)) {
-        const s2 = grid[ar][ac];
-        const key = `${ar},${ac}`;
-
-        const isMine =
-          s2.state === CellState.FLAG || (knownMines && knownMines.has(key));
-        const isSafe = knownSafes && knownSafes.has(key);
-
-        if (isMine) flagged++;
-        else if (s2.state === CellState.WALL && !isSafe) unknown.push([ar, ac]);
-      }
+      const { flagged, unknownWalls } = classifyNeighbors(grid, rr, cc, rows, cols, knownMines, knownSafes);
       const need = n - flagged;
-      if (need < 0 || need > unknown.length) return { kind: "contradiction" };
+      if (need < 0 || need > unknownWalls.length) return { kind: "contradiction" };
 
-      const idxs = unknown.map(([ar, ac]) => addVar(ar, ac));
+      const idxs = unknownWalls.map(([ar, ac]) => addVar(ar, ac));
       constraints.push({ vars: idxs, need });
     }
 
-    const targetKey = `${targetR},${targetC}`;
+    const targetKey = cellKey(targetR, targetC);
     if (!varMap.has(targetKey)) return null;
     const targetOld = varMap.get(targetKey);
 
     const nVars = vars.length;
     const mCons = constraints.length;
 
-    const MAX_EXACT = 20;
-    if (nVars > MAX_EXACT) {
+    function approxFromConstraints() {
       const ps = [];
       for (const con of constraints) {
         const k = con.vars.length;
@@ -114,6 +98,11 @@
       const pMax = Math.min(1, Math.max(...ps));
       const pAvg = ps.reduce((a, b) => a + b, 0) / ps.length;
       return { kind: "approx", p: pAvg, min: pMin, max: pMax, vars: nVars, cons: mCons };
+    }
+
+    const MAX_EXACT = 20;
+    if (nVars > MAX_EXACT) {
+      return approxFromConstraints();
     }
 
     const deg = Array(nVars).fill(0);
@@ -214,17 +203,7 @@
 
     const res = dfs(0);
     if (res === "abort") {
-      const ps = [];
-      for (let j = 0; j < mCons; j++) {
-        const k = consLen[j];
-        if (k <= 0) continue;
-        ps.push(consNeed[j] / k);
-      }
-      if (ps.length === 0) return null;
-      const pMin = Math.max(0, Math.min(...ps));
-      const pMax = Math.min(1, Math.max(...ps));
-      const pAvg = ps.reduce((a, b) => a + b, 0) / ps.length;
-      return { kind: "approx", p: pAvg, min: pMin, max: pMax, vars: nVars, cons: mCons };
+      return approxFromConstraints();
     }
 
     if (total === 0) return { kind: "contradiction" };
@@ -236,7 +215,7 @@
       for (let c = 0; c < cols; c++) {
         if (grid[r][c].state !== CellState.REVEALED) continue;
         for (const [wr, wc] of orthoNeighbors(r, c, rows, cols)) {
-          const key = `${wr},${wc}`;
+          const key = cellKey(wr, wc);
           if (safesSet.has(key) && grid[wr][wc].state === CellState.WALL) return true;
         }
       }
@@ -244,32 +223,36 @@
     return false;
   }
 
-  function computeRecommendations(grid, rows, cols, knownMines, knownSafes) {
-    if (hasSafeWallOrthAdjacentToAnyRevealed(grid, rows, cols, knownSafes)) return new Set();
-
+  function collectCandidateWalls(grid, rows, cols, neighborFn, knownMines, knownSafes) {
     const cand = [];
-    const candSet = new Set();
+    const seen = new Set();
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         if (grid[r][c].state !== CellState.REVEALED) continue;
-        for (const [wr, wc] of orthoNeighbors(r, c, rows, cols)) {
+        for (const [wr, wc] of neighborFn(r, c, rows, cols)) {
           if (grid[wr][wc].state !== CellState.WALL) continue;
-          const key = `${wr},${wc}`;
+          const key = cellKey(wr, wc);
           if (knownMines.has(key) || knownSafes.has(key)) continue;
-          if (!candSet.has(key)) {
-            candSet.add(key);
-            cand.push([wr, wc]);
-          }
+          if (seen.has(key)) continue;
+          seen.add(key);
+          cand.push([wr, wc]);
         }
       }
     }
+    return cand;
+  }
+
+  function computeRecommendations(grid, rows, cols, knownMines, knownSafes) {
+    if (hasSafeWallOrthAdjacentToAnyRevealed(grid, rows, cols, knownSafes)) return new Set();
+
+    const cand = collectCandidateWalls(grid, rows, cols, orthoNeighbors, knownMines, knownSafes);
     if (cand.length === 0) return new Set();
 
     let bestP = Infinity;
     const scored = [];
 
     for (const [wr, wc] of cand) {
-      const key = `${wr},${wc}`;
+      const key = cellKey(wr, wc);
       const res = computeMineProbabilityForWall(grid, rows, cols, wr, wc, knownMines, knownSafes);
       if (!res || res.kind === "contradiction") continue;
 
@@ -289,6 +272,8 @@
   }
 
   window.IWABA.solver = {
+    classifyNeighbors,
+    collectCandidateWalls,
     validateContradictions,
     computeMineProbabilityForWall,
     computeRecommendations,

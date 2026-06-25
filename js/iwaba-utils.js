@@ -20,6 +20,10 @@
     return `${toKanji(rows - r)}-${c + 1}`;
   }
 
+  function cellKey(r, c) {
+    return `${r},${c}`;
+  }
+
   function neighbors(r, c, rows, cols) {
     const out = [];
     for (let dr = -1; dr <= 1; dr++) {
@@ -46,5 +50,5 @@
     return Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
   }
 
-  window.IWABA.utils = { toKanji, cellCoord, neighbors, orthoNeighbors, wheelPrimaryDelta };
+  window.IWABA.utils = { toKanji, cellCoord, cellKey, neighbors, orthoNeighbors, wheelPrimaryDelta };
 })();

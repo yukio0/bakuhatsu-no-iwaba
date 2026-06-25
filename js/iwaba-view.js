@@ -303,11 +303,8 @@
   }
 
   function setInputModeData(ctx) {
-    try {
-      const mode = ctx?.els?.inputModeEl?.value || "paint";
-      document.documentElement.dataset.inputMode = mode;
-    } catch (_) {
-    }
+    const mode = ctx?.els?.inputModeEl?.value || "paint";
+    document.documentElement.dataset.inputMode = mode;
   }
 
   function syncResponsiveBoard(ctx) {
@@ -443,7 +440,7 @@
     for (const el of boardEl.querySelectorAll(".cell")) {
       const r = Number(el.dataset.r);
       const c = Number(el.dataset.c);
-      const key = `${r},${c}`;
+      const key = ctx.utils.cellKey(r, c);
 
       if (recosSet && recosSet.has(key)) el.classList.add("suggest-reco");
       if (safesSet && safesSet.has(key)) el.classList.add("suggest-safe");

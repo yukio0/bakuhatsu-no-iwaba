@@ -383,7 +383,7 @@
     const { r, c } = getCellPosition(cell);
 
     if (ctx.state.drag.mode === "rightStamp") {
-      const key = `${r},${c}`;
+      const key = ctx.utils.cellKey(r, c);
       if (key === ctx.state.drag.lastRightKey) return;
       ctx.state.drag.lastRightKey = key;
 
@@ -445,28 +445,18 @@
     return false;
   }
 
-  function bind(ctx) {
-    const {
-      difficultyEl,
-      inputModeEl,
-      btnSolve,
-      btnReset,
-      btnUndo,
-      btnRedo,
-      autoSolveEl,
-      toastEl,
-      boardEl,
-      boardScrollerEl,
-      themeToggleEl,
-    } = ctx.els;
-
-    const scrollLock = makeScrollLockController(boardScrollerEl);
+  function bindThemeToggle(ctx) {
+    const { themeToggleEl } = ctx.els;
 
     setDarkMode(ctx, false);
     themeToggleEl.addEventListener("click", () => {
       const dark = document.documentElement.dataset.theme === "dark";
       setDarkMode(ctx, !dark);
     });
+  }
+
+  function bindControls(ctx) {
+    const { difficultyEl, inputModeEl, btnSolve, btnReset, btnUndo, btnRedo, autoSolveEl, toastEl, boardScrollerEl } = ctx.els;
 
     window.addEventListener("resize", () => IWABA.view.syncSolveButtonWidth(ctx));
     IWABA.logic.updateHistoryButtons(ctx);
@@ -510,6 +500,10 @@
 
     if (btnUndo) btnUndo.addEventListener("click", () => runUndo(ctx));
     if (btnRedo) btnRedo.addEventListener("click", () => runRedo(ctx));
+  }
+
+  function bindBoardPointer(ctx, scrollLock) {
+    const { boardEl } = ctx.els;
 
     boardEl.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -566,7 +560,9 @@
 
     boardEl.addEventListener("pointerup", endDrag);
     boardEl.addEventListener("pointercancel", endDrag);
+  }
 
+  function bindWheel(ctx) {
     window.addEventListener(
       "wheel",
       (e) => {
@@ -581,7 +577,9 @@
       },
       { passive: false, capture: true }
     );
+  }
 
+  function bindKeyboard(ctx) {
     document.addEventListener("keydown", (e) => {
       if (isEditingFieldFocused()) return;
 
@@ -606,6 +604,16 @@
 
       handleGlobalToolShortcut(ctx, e.key.toLowerCase());
     });
+  }
+
+  function bind(ctx) {
+    const scrollLock = makeScrollLockController(ctx.els.boardScrollerEl);
+
+    bindThemeToggle(ctx);
+    bindControls(ctx);
+    bindBoardPointer(ctx, scrollLock);
+    bindWheel(ctx);
+    bindKeyboard(ctx);
 
     bindCells(ctx);
   }
