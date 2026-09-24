@@ -356,6 +356,16 @@
     ctx.els.boardEl.setPointerCapture(ctx.state.drag.pointerId);
   }
 
+  function beginPendingLeftPaintDrag(ctx, pointerId) {
+    const startR = Number(ctx.state.drag.pendingCellR);
+    const startC = Number(ctx.state.drag.pendingCellC);
+    clearPendingPaintLongPress(ctx);
+
+    const startCell = ctx.els.boardEl.querySelector(`.cell[data-r="${startR}"][data-c="${startC}"]`);
+    if (startCell) beginLeftPaintDrag(ctx, pointerId, startCell);
+    else ctx.state.drag.mode = "left";
+  }
+
   function maybePromotePendingLeftDrag(ctx, e) {
     if (ctx.state.drag.mode !== "leftPending") return;
 
@@ -370,13 +380,7 @@
 
     if (!movedEnough) return;
 
-    const startR = Number(ctx.state.drag.pendingCellR);
-    const startC = Number(ctx.state.drag.pendingCellC);
-    clearPendingPaintLongPress(ctx);
-
-    const startCell = ctx.els.boardEl.querySelector(`.cell[data-r="${startR}"][data-c="${startC}"]`);
-    if (startCell) beginLeftPaintDrag(ctx, e.pointerId, startCell);
-    else ctx.state.drag.mode = "left";
+    beginPendingLeftPaintDrag(ctx, e.pointerId);
   }
 
   function applyDragMove(ctx, cell) {
@@ -532,7 +536,7 @@
       if (e.cancelable) e.preventDefault();
 
       maybePromotePendingLeftDrag(ctx, e);
-      if (ctx.state.drag.mode === "probPreview") return;
+      if (ctx.state.drag.mode === "leftPending" || ctx.state.drag.mode === "probPreview") return;
 
       const cell = cellFromPoint(ctx, e.clientX, e.clientY);
       if (!cell) return;
@@ -542,6 +546,11 @@
     function endDrag(e) {
       if (!ctx.state.drag.active) return;
       if (e.pointerId !== ctx.state.drag.pointerId) return;
+
+      // A short tap paints on release; cancellation must not turn into a tap.
+      if (e.type === "pointerup" && ctx.state.drag.mode === "leftPending") {
+        beginPendingLeftPaintDrag(ctx, e.pointerId);
+      }
 
       const changed = ctx.state.drag.changed;
       const snapshot = ctx.state.drag.historySnapshot;
