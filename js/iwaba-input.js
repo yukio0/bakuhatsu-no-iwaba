@@ -101,9 +101,9 @@
     return true;
   }
 
-  function applyToolShortcutToCell(ctx, cell, tool, preserveUI) {
+  function applyToolShortcutToCell(ctx, cell, tool) {
     commitSingleCellChange(ctx, cell, (r, c) =>
-      IWABA.logic.applyTool(ctx, r, c, tool, { preserveUI })
+      IWABA.logic.applyTool(ctx, r, c, tool)
     );
   }
 
@@ -169,7 +169,7 @@
 
       hideProbTip(ctx);
       commitSingleCellChange(ctx, cell, (r, c) =>
-        IWABA.logic.cycleCell(ctx, r, c, { preserveUI: true })
+        IWABA.logic.cycleCell(ctx, r, c)
       );
     });
 
@@ -181,33 +181,32 @@
 
       hideProbTip(ctx);
       commitSingleCellChange(ctx, cell, (r, c) =>
-        IWABA.logic.cycleCellBackward(ctx, r, c, { preserveUI: true })
+        IWABA.logic.cycleCellBackward(ctx, r, c)
       );
     });
 
     cell.addEventListener("keydown", (e) => {
       const key = e.key.toLowerCase();
-      const preserveUI = isCycleMode(ctx);
 
       if (key >= "0" && key <= "8") {
         e.preventDefault();
         e.stopPropagation();
         hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.num(Number(key)), preserveUI);
+        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.num(Number(key)));
         return;
       }
       if (key === "f") {
         e.preventDefault();
         e.stopPropagation();
         hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.flag(), preserveUI);
+        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.flag());
         return;
       }
       if (key === "w" || key === "?") {
         e.preventDefault();
         e.stopPropagation();
         hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.wall(), preserveUI);
+        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.wall());
       }
     });
   }
@@ -269,7 +268,6 @@
     ctx.state.drag.lastStamp = null;
     ctx.state.drag.lastRightKey = null;
     ctx.state.drag.rightStamp = null;
-    ctx.state.drag.preserveUI = false;
   }
 
   function beginLeftPaintDrag(ctx, pointerId, cell) {
@@ -282,9 +280,8 @@
     ctx.state.drag.lastStamp = stamp;
     ctx.state.drag.lastRightKey = null;
     ctx.state.drag.rightStamp = null;
-    ctx.state.drag.preserveUI = false;
 
-    const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+    const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool);
     if (changed) {
       ctx.state.drag.changed = true;
       IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
@@ -301,17 +298,13 @@
 
   function startRightStampDrag(ctx, cell, e, scrollLock) {
     const { r, c } = getCellPosition(cell);
-    const preserveUI = false;
-
-    if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
 
     setBaseDragState(ctx, e.pointerId);
     ctx.state.drag.mode = "rightStamp";
-    ctx.state.drag.preserveUI = preserveUI;
     ctx.state.drag.rightStamp = resolveRightDragStamp(ctx, r, c);
     ctx.state.drag.historySnapshot = IWABA.logic.historySnapshot(ctx);
 
-    const changed = IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp, { preserveUI });
+    const changed = IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp);
     ctx.state.drag.changed = changed;
     if (changed) IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
 
@@ -328,7 +321,6 @@
     setBaseDragState(ctx, e.pointerId);
     ctx.state.drag.mode = canLongPressForProb ? "leftPending" : "left";
 
-    if (!autoSolveEnabled(ctx)) IWABA.logic.clearHints(ctx);
     ctx.state.drag.historySnapshot = IWABA.logic.historySnapshot(ctx);
 
     if (canLongPressForProb) {
@@ -391,9 +383,7 @@
       if (key === ctx.state.drag.lastRightKey) return;
       ctx.state.drag.lastRightKey = key;
 
-      const changed = IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp, {
-        preserveUI: ctx.state.drag.preserveUI,
-      });
+      const changed = IWABA.logic.rightPaintStamp(ctx, r, c, ctx.state.drag.rightStamp);
       if (!changed) return;
 
       ctx.state.drag.changed = true;
@@ -405,7 +395,7 @@
     if (stamp === ctx.state.drag.lastStamp) return;
     ctx.state.drag.lastStamp = stamp;
 
-    const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool, { preserveUI: false });
+    const changed = IWABA.logic.applyTool(ctx, r, c, ctx.state.currentTool);
     if (!changed) return;
 
     ctx.state.drag.changed = true;
@@ -420,7 +410,6 @@
     ctx.state.drag.rightStamp = null;
     ctx.state.drag.lastStamp = null;
     ctx.state.drag.lastRightKey = null;
-    ctx.state.drag.preserveUI = false;
     ctx.state.drag.historySnapshot = null;
     clearPendingPaintLongPress(ctx);
   }

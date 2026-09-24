@@ -218,11 +218,9 @@
     updateHistoryButtons(ctx);
   }
 
-  function markDirty(ctx, { preserveUI = false } = {}) {
-    IWABA.view.hideProbTip(ctx);
-    if (preserveUI) return;
-
+  function markDirty(ctx) {
     resetAnalysisUI(ctx);
+    IWABA.view.clearSuggestVisualsOnly(ctx);
   }
 
   function setWall(ctx, st) {
@@ -247,31 +245,31 @@
     return st.state === state && st.num === num;
   }
 
-  function applyTool(ctx, r, c, tool, { preserveUI = false } = {}) {
+  function applyTool(ctx, r, c, tool) {
     const { CellState } = ctx.consts;
 
     const st = ctx.state.grid[r][c];
     if (tool.kind === "wall") {
       if (isSameCellState(st, CellState.WALL, 0)) return false;
-      markDirty(ctx, { preserveUI });
+      markDirty(ctx);
       setWall(ctx, st);
       return true;
     }
     if (tool.kind === "flag") {
       if (isSameCellState(st, CellState.FLAG, 0)) return false;
-      markDirty(ctx, { preserveUI });
+      markDirty(ctx);
       setFlag(ctx, st);
       return true;
     }
     if (isSameCellState(st, CellState.REVEALED, tool.num)) return false;
-    markDirty(ctx, { preserveUI });
+    markDirty(ctx);
     setRevealed(ctx, st, tool.num);
     return true;
   }
 
-  function cycleCell(ctx, r, c, { preserveUI = false } = {}) {
+  function cycleCell(ctx, r, c) {
     const { CellState } = ctx.consts;
-    markDirty(ctx, { preserveUI });
+    markDirty(ctx);
 
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
@@ -289,9 +287,9 @@
     return true;
   }
 
-  function cycleCellBackward(ctx, r, c, { preserveUI = false } = {}) {
+  function cycleCellBackward(ctx, r, c) {
     const { CellState } = ctx.consts;
-    markDirty(ctx, { preserveUI });
+    markDirty(ctx);
 
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
@@ -310,25 +308,25 @@
     return true;
   }
 
-  function rightPaintStamp(ctx, r, c, stamp, { preserveUI = false } = {}) {
+  function rightPaintStamp(ctx, r, c, stamp) {
     const { CellState } = ctx.consts;
 
     const st = ctx.state.grid[r][c];
 
     if (stamp === "wall") {
       if (isSameCellState(st, CellState.WALL, 0)) return false;
-      markDirty(ctx, { preserveUI });
+      markDirty(ctx);
       setWall(ctx, st);
       return true;
     }
     if (stamp === "blank") {
       if (isSameCellState(st, CellState.REVEALED, 0)) return false;
-      markDirty(ctx, { preserveUI });
+      markDirty(ctx);
       setRevealed(ctx, st, 0);
       return true;
     }
     if (isSameCellState(st, CellState.FLAG, 0)) return false;
-    markDirty(ctx, { preserveUI });
+    markDirty(ctx);
     setFlag(ctx, st);
     return true;
   }
@@ -440,12 +438,11 @@
 
     if (result.kind === "exact") {
       IWABA.view.showProbTipForCell(ctx, cellEl, `地雷確率：${pct(result.p)}`, ``);
-    } else {
-      const range =
-        Math.round(result.min * 100) === Math.round(result.max * 100)
-          ? pct(result.p)
-          : `${pct(result.min)}〜${pct(result.max)}`;
-      IWABA.view.showProbTipForCell(ctx, cellEl, `地雷確率：${range}`, ``);
+    } else if (result.kind === "unavailable") {
+      IWABA.view.showProbTipForCell(
+        ctx, cellEl, "地雷確率：算出できません",
+        "地雷配置の組み合わせが多いため、計算を完了できませんでした。"
+      );
     }
   }
 
@@ -515,6 +512,10 @@
   function refineByProbability(ctx, forcedMines, forcedSafes) {
     const startBudget = performance.now();
     let anyChange = false;
+    // Use one set of assumptions throughout this pass, allowing every wall in
+    // a component to reuse the same complete enumeration.
+    const knownMines = new Set(forcedMines);
+    const knownSafes = new Set(forcedSafes);
 
     const cand = ctx.solver.collectCandidateWalls(
       ctx.state.grid, ctx.state.rows, ctx.state.cols,
@@ -527,25 +528,15 @@
       const key = ctx.utils.cellKey(wr, wc);
       if (forcedMines.has(key) || forcedSafes.has(key)) continue;
 
-      const res = computeMineProbabilityForWall(ctx, wr, wc, forcedMines, forcedSafes);
-      if (!res || res.kind === "contradiction") continue;
+      const res = computeMineProbabilityForWall(ctx, wr, wc, knownMines, knownSafes);
+      if (!res || res.kind !== "exact") continue;
 
-      if (res.kind === "exact") {
-        if (res.mine === 0) {
-          forcedSafes.add(key);
-          anyChange = true;
-        } else if (res.mine === res.total) {
-          forcedMines.add(key);
-          anyChange = true;
-        }
-      } else {
-        if (res.max <= 0) {
-          forcedSafes.add(key);
-          anyChange = true;
-        } else if (res.min >= 1) {
-          forcedMines.add(key);
-          anyChange = true;
-        }
+      if (res.mine === 0) {
+        forcedSafes.add(key);
+        anyChange = true;
+      } else if (res.mine === res.total) {
+        forcedMines.add(key);
+        anyChange = true;
       }
     }
 

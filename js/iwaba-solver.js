@@ -48,13 +48,31 @@
     return list;
   }
 
-  function computeMineProbabilityForWall(grid, rows, cols, targetR, targetC, knownMines, knownSafes) {
-    const touchingRevealed = [];
-    for (const [rr, cc] of neighbors(targetR, targetC, rows, cols)) {
-      const st = grid[rr][cc];
-      if (st.state === CellState.REVEALED) touchingRevealed.push([rr, cc]);
+  const probabilityCaches = new WeakMap();
+
+  function probabilityCache(grid, rows, cols, knownMines, knownSafes) {
+    // Grids and inferred sets are mutated in place; identity alone is not enough.
+    const signature = JSON.stringify([
+      rows, cols,
+      grid.map((row) => row.map((st) => [st.state, st.num])),
+      [...(knownMines || [])].sort(), [...(knownSafes || [])].sort(),
+    ]);
+    let cached = probabilityCaches.get(grid);
+    if (!cached || cached.signature !== signature) {
+      cached = { signature, results: new Map() };
+      probabilityCaches.set(grid, cached);
     }
-    if (touchingRevealed.length === 0) return null;
+    return cached.results;
+  }
+
+  function computeMineProbabilityForWall(grid, rows, cols, targetR, targetC, knownMines, knownSafes) {
+    const targetKey = cellKey(targetR, targetC);
+    if (grid[targetR][targetC].state !== CellState.WALL || knownMines?.has(targetKey) || knownSafes?.has(targetKey)) {
+      return null;
+    }
+
+    const cached = probabilityCache(grid, rows, cols, knownMines, knownSafes);
+    if (cached.has(targetKey)) return cached.get(targetKey);
 
     const varMap = new Map();
     const vars = [];
@@ -67,43 +85,37 @@
       return idx;
     }
 
+    // Traverse the entire connected component: wall -> clue -> unknown walls.
+    // Disconnected components factor out of the probability because there is
+    // no total-mine-count constraint in this tool.
+    addVar(targetR, targetC);
     const constraints = [];
-    for (const [rr, cc] of touchingRevealed) {
-      const n = grid[rr][cc].num;
+    const seenClues = new Set();
+    let contradictory = false;
+    for (let i = 0; i < vars.length; i++) {
+      const { r, c } = vars[i];
+      for (const [rr, cc] of neighbors(r, c, rows, cols)) {
+        if (grid[rr][cc].state !== CellState.REVEALED) continue;
+        const key = cellKey(rr, cc);
+        if (seenClues.has(key)) continue;
+        seenClues.add(key);
 
-      const { flagged, unknownWalls } = classifyNeighbors(grid, rr, cc, rows, cols, knownMines, knownSafes);
-      const need = n - flagged;
-      if (need < 0 || need > unknownWalls.length) return { kind: "contradiction" };
-
-      const idxs = unknownWalls.map(([ar, ac]) => addVar(ar, ac));
-      constraints.push({ vars: idxs, need });
+        const { flagged, unknownWalls } = classifyNeighbors(grid, rr, cc, rows, cols, knownMines, knownSafes);
+        const need = grid[rr][cc].num - flagged;
+        if (need < 0 || need > unknownWalls.length) contradictory = true;
+        const idxs = unknownWalls.map(([ar, ac]) => addVar(ar, ac));
+        constraints.push({ vars: idxs, need });
+      }
     }
-
-    const targetKey = cellKey(targetR, targetC);
-    if (!varMap.has(targetKey)) return null;
-    const targetOld = varMap.get(targetKey);
 
     const nVars = vars.length;
     const mCons = constraints.length;
-
-    function approxFromConstraints() {
-      const ps = [];
-      for (const con of constraints) {
-        const k = con.vars.length;
-        if (k <= 0) continue;
-        ps.push(con.need / k);
-      }
-      if (ps.length === 0) return null;
-      const pMin = Math.max(0, Math.min(...ps));
-      const pMax = Math.min(1, Math.max(...ps));
-      const pAvg = ps.reduce((a, b) => a + b, 0) / ps.length;
-      return { kind: "approx", p: pAvg, min: pMin, max: pMax, vars: nVars, cons: mCons };
+    function cacheComponentResult(result) {
+      for (const { r, c } of vars) cached.set(cellKey(r, c), result);
+      return result;
     }
-
-    const MAX_EXACT = 20;
-    if (nVars > MAX_EXACT) {
-      return approxFromConstraints();
-    }
+    if (mCons === 0) return cacheComponentResult(null);
+    if (contradictory) return cacheComponentResult({ kind: "contradiction" });
 
     const deg = Array(nVars).fill(0);
     for (const con of constraints) for (const v of con.vars) deg[v]++;
@@ -111,8 +123,6 @@
     const orderOld = [...Array(nVars).keys()].sort((a, b) => deg[b] - deg[a]);
     const oldToNew = Array(nVars).fill(0);
     for (let i = 0; i < nVars; i++) oldToNew[orderOld[i]] = i;
-
-    const target = oldToNew[targetOld];
 
     const consVars = [];
     const consNeed = [];
@@ -133,7 +143,7 @@
     const cntAssigned = Array(mCons).fill(0);
 
     let total = 0;
-    let mine = 0;
+    const mineCounts = Array(nVars).fill(0);
     let nodes = 0;
     const start = performance.now();
     const NODE_LIMIT = 300000;
@@ -154,14 +164,14 @@
 
     function dfs(i) {
       nodes++;
+      if (nodes > NODE_LIMIT) return "abort";
       if ((nodes & 2047) === 0) {
-        if (nodes > NODE_LIMIT) return "abort";
         if (performance.now() - start > TIME_LIMIT_MS) return "abort";
       }
 
       if (i === nVars) {
         total++;
-        if (assigned[target] === 1) mine++;
+        for (let v = 0; v < nVars; v++) mineCounts[v] += assigned[v];
         return;
       }
 
@@ -203,11 +213,18 @@
 
     const res = dfs(0);
     if (res === "abort") {
-      return approxFromConstraints();
+      // Partial enumeration is biased; never turn it into a probability or a
+      // certainty. Cache the outcome so other cells do not repeat the search.
+      return cacheComponentResult({ kind: "unavailable", reason: "limit", vars: nVars, cons: mCons });
     }
 
-    if (total === 0) return { kind: "contradiction" };
-    return { kind: "exact", p: mine / total, total, mine, vars: nVars, cons: mCons };
+    if (total === 0) return cacheComponentResult({ kind: "contradiction" });
+    for (let v = 0; v < nVars; v++) {
+      const { r, c } = vars[v];
+      const mine = mineCounts[oldToNew[v]];
+      cached.set(cellKey(r, c), { kind: "exact", p: mine / total, total, mine, vars: nVars, cons: mCons });
+    }
+    return cached.get(targetKey);
   }
 
   function hasSafeWallOrthAdjacentToAnyRevealed(grid, rows, cols, safesSet) {
@@ -250,11 +267,14 @@
 
     let bestP = Infinity;
     const scored = [];
+    const start = performance.now();
 
     for (const [wr, wc] of cand) {
+      if (performance.now() - start > 80) return new Set();
       const key = cellKey(wr, wc);
       const res = computeMineProbabilityForWall(grid, rows, cols, wr, wc, knownMines, knownSafes);
-      if (!res || res.kind === "contradiction") continue;
+      // A minimum cannot be claimed if any candidate could not be evaluated.
+      if (!res || res.kind !== "exact") return new Set();
 
       const p = res.p;
       scored.push({ key, p });

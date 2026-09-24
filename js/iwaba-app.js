@@ -56,7 +56,6 @@
           mode: null,
           lastStamp: null,
           lastRightKey: null,
-          preserveUI: false,
         },
         lastSuggestMines: new Set(),
         lastSuggestSafes: new Set(),
