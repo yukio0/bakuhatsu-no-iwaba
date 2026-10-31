@@ -386,31 +386,114 @@
     return ctx.solver.validateContradictions(ctx.state.grid, ctx.state.rows, ctx.state.cols, extraMines, extraSafes);
   }
 
-  function formatContradictionMessage(ctx, item) {
-    const p = cellCoord(ctx, item.r, item.c);
-    if (item.kind === "tooManyFlags") {
-      return `${p} の数字は「${item.n}」ですが、周囲に地雷確定（旗）が ${item.flagged} 個あります。`;
-    }
-    const maxMines = item.flagged + item.walls;
-    return `${p} の数字は「${item.n}」ですが、周囲の「地雷確定（旗）${item.flagged} 個 + まだ地雷になりうる壁 ${item.walls} 個」を全部合わせても最大 ${maxMines} 個です。`;
+  const sortCells = (cells) => cells.sort(([r1, c1], [r2, c2]) => r1 - r2 || c1 - c2);
+
+  function clueLabel(ctx, r, c, n) {
+    const p = cellCoord(ctx, r, c);
+    return n === 0 ? `${p} の無地（0）` : `${p} の「${n}」`;
   }
 
-  function renderContradictionsUI(ctx, extraMines = null, extraSafes = null) {
+  function cellsWith(ctx, cells, particle, maxNamed = 4) {
+    const names = cells.slice(0, maxNamed).map(([r, c]) => cellCoord(ctx, r, c)).join("・");
+    if (cells.length <= maxNamed) return `${names} ${particle}`;
+    return `${names} ほか ${cells.length - maxNamed} マス${particle}`;
+  }
+
+  function sourcesPhrase(ctx, sources) {
+    if (sources.length === 0) return "推論で ";
+    const labels = sources.slice(0, 2).map(([r, c]) => clueLabel(ctx, r, c, ctx.state.grid[r][c].num));
+    return `${labels.join("と ")}${sources.length > 2 ? "など" : ""}から `;
+  }
+
+  function sourceClues(ctx, item, reasons) {
+    const inferred = item.kind === "tooManyFlags" ? item.inferredMines : item.inferredSafes;
+    const sources = new Map();
+    for (const [r, c] of inferred) {
+      const src = reasons?.get(ctx.utils.cellKey(r, c));
+      if (!src || (src[0] === item.r && src[1] === item.c)) continue;
+      sources.set(ctx.utils.cellKey(src[0], src[1]), src);
+    }
+    return sortCells([...sources.values()]);
+  }
+
+  function formatTooManyMines(ctx, item, clue) {
+    if (item.inferredMines.length === 0) {
+      return `${clue}の周りに地雷が ${item.flags} 個あり、多すぎます。`;
+    }
+    const cause = `${sourcesPhrase(ctx, item.sources)}${cellsWith(ctx, item.inferredMines, "が")}地雷確定になりますが、`;
+    const total = item.flags > 0 ? `、入力した地雷 ${item.flags} 個と合わせて ${item.flagged} 個` : ` ${item.flagged} 個`;
+    return `${cause}そうすると ${clue}の周りの地雷が${total}になり、合いません。`;
+  }
+
+  function formatTooFewWalls(ctx, item, clue) {
+    const max = item.flagged + item.walls;
+    if (item.inferredSafes.length > 0) {
+      const cause = `${sourcesPhrase(ctx, item.sources)}${cellsWith(ctx, item.inferredSafes, "が")}安全確定になりますが、`;
+      return `${cause}そうすると ${clue}の周りの地雷は多くても ${max} 個になり、足りません。`;
+    }
+    if (item.inferredMines.length > 0) return `${clue}の周りの地雷は多くても ${max} 個になり、足りません。`;
+    if (item.flags === 0) {
+      return item.walls === 0
+        ? `${clue}の周りに、地雷を置ける壁がありません。`
+        : `${clue}の周りには、地雷を置ける壁が ${item.walls} マスしかありません。`;
+    }
+    return item.walls === 0
+      ? `${clue}の周りには地雷が ${item.flags} 個あるだけで、ほかに地雷を置ける壁がありません。`
+      : `${clue}の周りには、地雷が ${item.flags} 個と、地雷を置ける壁が ${item.walls} マスしかなく、合わせても ${max} 個にしかなりません。`;
+  }
+
+  function formatJointlyImpossible(ctx, item) {
+    const { pair } = item;
+    if (!pair) {
+      return `${cellsWith(ctx, item.cells, "の")}数字をすべて満たす地雷の置き方がありません。どれかの数字が間違っている可能性があります。`;
+    }
+    const low = pair.atMost;
+    const high = pair.atLeast;
+    const lowSide = low.max === 0 ? "地雷は 1 個も入らず" : `地雷は多くても ${low.max} 個`;
+    return `${clueLabel(ctx, low.r, low.c, low.n)}と ${clueLabel(ctx, high.r, high.c, high.n)}の周りで共通する壁 ${pair.shared} マスには、`
+      + `${cellCoord(ctx, low.r, low.c)} から見ると${lowSide}、`
+      + `${cellCoord(ctx, high.r, high.c)} から見ると少なくとも ${high.min} 個必要で、両立しません。`;
+  }
+
+  function formatContradictionMessage(ctx, item) {
+    if (item.kind === "jointlyImpossible") return formatJointlyImpossible(ctx, item);
+    const clue = clueLabel(ctx, item.r, item.c, item.n);
+    return item.kind === "tooManyFlags" ? formatTooManyMines(ctx, item, clue) : formatTooFewWalls(ctx, item, clue);
+  }
+
+  function framedCells(item) {
+    if (item.kind !== "jointlyImpossible") return [[item.r, item.c], ...item.sources];
+    const { pair } = item;
+    return pair ? [[pair.atMost.r, pair.atMost.c], [pair.atLeast.r, pair.atLeast.c]] : item.cells;
+  }
+
+  function renderContradictionsUI(ctx, extraMines = null, extraSafes = null, { reasons = null, jointGroups = [] } = {}) {
     IWABA.view.clearContradictionsUI(ctx);
 
-    const cons = validateContradictions(ctx, extraMines, extraSafes);
-    if (cons.length === 0) {
+    const items = Array.from(validateContradictions(ctx, extraMines, extraSafes), (it) => {
+      const item = { ...it, inferredMines: Array.from(it.inferredMines), inferredSafes: Array.from(it.inferredSafes) };
+      item.sources = sourceClues(ctx, item, reasons);
+      return item;
+    });
+    for (const clues of jointGroups) {
+      const cells = sortCells(Array.from(clues, (key) => key.split(",").map(Number)));
+      const pair = ctx.solver.explainJointContradiction(ctx.state.grid, ctx.state.rows, ctx.state.cols, Array.from(clues));
+      items.push({ kind: "jointlyImpossible", cells, pair });
+    }
+    if (items.length === 0) {
       IWABA.view.hideToast(ctx);
       return false;
     }
 
-    for (const it of cons) {
-      const el = IWABA.view.getCellEl(ctx, it.r, it.c);
-      if (el) el.classList.add("contradiction");
+    for (const item of items) {
+      for (const [r, c] of framedCells(item)) {
+        const el = IWABA.view.getCellEl(ctx, r, c);
+        if (el) el.classList.add("contradiction");
+      }
     }
 
     const maxVisible = 4;
-    const top = cons.slice(0, maxVisible);
+    const top = items.slice(0, maxVisible);
 
     IWABA.view.showToast(ctx, (root) => {
       const closeBtn = IWABA.view.makeEl("button", "toastClose");
@@ -418,27 +501,24 @@
       closeBtn.setAttribute("aria-label", "close");
       closeBtn.textContent = "×";
 
-      const title = IWABA.view.makeEl("b", null, "この盤面は矛盾しています");
-      const lead = IWABA.view.makeEl(
-        "div",
-        "muted mt6",
-        "赤枠のマスは、周囲の状況が数字と一致していません。近くの入力を見直してください。"
-      );
+      const title = IWABA.view.makeEl("b", null, "入力に矛盾があります");
 
       const ul = IWABA.view.makeEl("ul", "toastList");
-      for (const it of top) {
-        ul.appendChild(IWABA.view.makeEl("li", null, formatContradictionMessage(ctx, it)));
+      for (const item of top) {
+        ul.appendChild(IWABA.view.makeEl("li", null, formatContradictionMessage(ctx, item)));
       }
 
-      IWABA.view.append(root, closeBtn, title, lead, ul);
+      IWABA.view.append(root, closeBtn, title, ul);
 
-      if (cons.length > top.length) {
-        root.appendChild(
-          IWABA.view.makeEl("div", "muted mt6", `表示しきれない矛盾が、他に ${cons.length - top.length} 件あります。`)
-        );
+      if (items.length > top.length) {
+        root.appendChild(IWABA.view.makeEl("div", "muted mt6", `ほかに ${items.length - top.length} 件の矛盾があります。`));
       }
       root.appendChild(
-        IWABA.view.makeEl("div", "muted mt6", "数字・旗・未確定の壁の入力ミスがないか、赤枠の周囲を順に確認してください。")
+        IWABA.view.makeEl(
+          "div",
+          "muted mt6",
+          "赤枠の数字とその周りを確認してください。よくある原因：数字の打ち間違い、地雷の置き間違い、床と壁の取り違え。"
+        )
       );
     });
 
@@ -516,7 +596,7 @@
     IWABA.view.applySuggestUI(ctx, ctx.state.lastSuggestMines, ctx.state.lastSuggestSafes, ctx.state.lastSuggestRecos);
   }
 
-  function propagateForcedCells(ctx, forcedMines, forcedSafes) {
+  function propagateForcedCells(ctx, forcedMines, forcedSafes, reasons = null) {
     const { CellState } = ctx.consts;
     let anyChange = false;
 
@@ -543,6 +623,7 @@
               const key = ctx.utils.cellKey(rr, cc);
               if (!forcedSafes.has(key)) {
                 forcedSafes.add(key);
+                reasons?.set(key, [r, c]);
                 changed = true;
                 anyChange = true;
               }
@@ -552,6 +633,7 @@
               const key = ctx.utils.cellKey(rr, cc);
               if (!forcedMines.has(key)) {
                 forcedMines.add(key);
+                reasons?.set(key, [r, c]);
                 changed = true;
                 anyChange = true;
               }
@@ -567,6 +649,8 @@
   function refineByProbability(ctx, forcedMines, forcedSafes) {
     const startBudget = performance.now();
     let anyChange = false;
+    const contradictions = [];
+    const seenContradictions = new Set();
     const knownMines = new Set(forcedMines);
     const knownSafes = new Set(forcedSafes);
 
@@ -582,6 +666,13 @@
       if (forcedMines.has(key) || forcedSafes.has(key)) continue;
 
       const res = computeMineProbabilityForWall(ctx, wr, wc, knownMines, knownSafes);
+      if (res?.kind === "contradiction") {
+        if (!seenContradictions.has(res)) {
+          seenContradictions.add(res);
+          contradictions.push(res.clues);
+        }
+        continue;
+      }
       if (!res || res.kind !== "exact") continue;
 
       if (res.mine === 0) {
@@ -593,7 +684,7 @@
       }
     }
 
-    return anyChange;
+    return { changed: anyChange, contradictions };
   }
 
   function solveDeterministic(ctx) {
@@ -606,23 +697,32 @@
 
     const forcedMines = new Set();
     const forcedSafes = new Set();
+    const reasons = new Map();
 
     let outerChanged = true;
     while (outerChanged) {
       outerChanged = false;
 
-      const propagated = propagateForcedCells(ctx, forcedMines, forcedSafes);
+      const propagated = propagateForcedCells(ctx, forcedMines, forcedSafes, reasons);
       if (propagated === "contradiction") {
-        ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes);
+        ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes, { reasons });
         commitSuggestions(ctx, forcedMines, forcedSafes, new Set());
         return;
       }
       if (propagated) outerChanged = true;
 
-      if (refineByProbability(ctx, forcedMines, forcedSafes)) outerChanged = true;
+      const refined = refineByProbability(ctx, forcedMines, forcedSafes);
+      if (refined.contradictions.length > 0) {
+        ctx.state.hasContradictionNow = renderContradictionsUI(
+          ctx, forcedMines, forcedSafes, { reasons, jointGroups: refined.contradictions }
+        );
+        commitSuggestions(ctx, forcedMines, forcedSafes, new Set());
+        return;
+      }
+      if (refined.changed) outerChanged = true;
     }
 
-    ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes);
+    ctx.state.hasContradictionNow = renderContradictionsUI(ctx, forcedMines, forcedSafes, { reasons });
 
     const recos = ctx.state.hasContradictionNow
       ? new Set()

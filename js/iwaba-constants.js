@@ -27,7 +27,6 @@
   const STAIRS_CHAR = "\u968E"; // "階"
 
   const TOOL_DEFS = [
-    // Stairs come first: rarely used, so kept apart from the number tools.
     { id: "stairs", label: "階", sub: "S", tool: Tool.stairs() },
     { id: "wall", label: "壁", sub: "W / ?", tool: Tool.wall() },
     { id: "flag", label: "⚑", sub: "F", tool: Tool.flag() },

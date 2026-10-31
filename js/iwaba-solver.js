@@ -25,6 +25,19 @@
     return { flagged, unknownWalls };
   }
 
+  function neighborBreakdown(grid, r, c, rows, cols, extraMines, extraSafes) {
+    let flags = 0;
+    const inferredMines = [];
+    const inferredSafes = [];
+    for (const [rr, cc] of neighbors(r, c, rows, cols)) {
+      const key = cellKey(rr, cc);
+      if (grid[rr][cc].state === CellState.FLAG) flags++;
+      else if (extraMines && extraMines.has(key)) inferredMines.push([rr, cc]);
+      else if (grid[rr][cc].state === CellState.WALL && extraSafes && extraSafes.has(key)) inferredSafes.push([rr, cc]);
+    }
+    return { flags, inferredMines, inferredSafes };
+  }
+
   function validateContradictions(grid, rows, cols, extraMines = null, extraSafes = null) {
     const list = [];
     for (let r = 0; r < rows; r++) {
@@ -35,17 +48,50 @@
         const n = st.num;
         const { flagged, unknownWalls } = classifyNeighbors(grid, r, c, rows, cols, extraMines, extraSafes);
         const walls = unknownWalls.length;
+        if (flagged <= n && flagged + walls >= n) continue;
 
-        if (flagged > n) {
-          list.push({ r, c, kind: "tooManyFlags", n, flagged, walls });
-          continue;
-        }
-        if (flagged + walls < n) {
-          list.push({ r, c, kind: "notEnoughCandidates", n, flagged, walls });
-        }
+        const kind = flagged > n ? "tooManyFlags" : "notEnoughCandidates";
+        const breakdown = neighborBreakdown(grid, r, c, rows, cols, extraMines, extraSafes);
+        list.push({ r, c, kind, n, flagged, walls, ...breakdown });
       }
     }
     return list;
+  }
+
+  function explainJointContradiction(grid, rows, cols, clueKeys) {
+    const clues = clueKeys
+      .map((key) => key.split(",").map(Number))
+      .sort(([r1, c1], [r2, c2]) => r1 - r2 || c1 - c2)
+      .map(([r, c]) => {
+        const { flagged, unknownWalls } = classifyNeighbors(grid, r, c, rows, cols);
+        const n = grid[r][c].num;
+        return { r, c, n, need: n - flagged, walls: new Set(unknownWalls.map(([wr, wc]) => cellKey(wr, wc))) };
+      });
+    const bounds = (clue, shared) => ({
+      min: Math.max(0, clue.need - (clue.walls.size - shared)),
+      max: Math.min(clue.need, shared),
+    });
+
+    for (let i = 0; i < clues.length; i++) {
+      for (let j = i + 1; j < clues.length; j++) {
+        const a = clues[i];
+        const b = clues[j];
+        let shared = 0;
+        for (const key of a.walls) if (b.walls.has(key)) shared++;
+        if (shared === 0) continue;
+
+        const boundA = bounds(a, shared);
+        const boundB = bounds(b, shared);
+        const pair = (low, high, boundLow, boundHigh) => ({
+          shared,
+          atMost: { r: low.r, c: low.c, n: low.n, max: boundLow.max },
+          atLeast: { r: high.r, c: high.c, n: high.n, min: boundHigh.min },
+        });
+        if (boundA.max < boundB.min) return pair(a, b, boundA, boundB);
+        if (boundB.max < boundA.min) return pair(b, a, boundB, boundA);
+      }
+    }
+    return null;
   }
 
   const probabilityCaches = new WeakMap();
@@ -110,8 +156,9 @@
       for (const { r, c } of vars) cached.set(cellKey(r, c), result);
       return result;
     }
+    const contradiction = () => cacheComponentResult({ kind: "contradiction", clues: [...seenClues] });
     if (mCons === 0) return cacheComponentResult(null);
-    if (contradictory) return cacheComponentResult({ kind: "contradiction" });
+    if (contradictory) return contradiction();
 
     const deg = Array(nVars).fill(0);
     for (const con of constraints) for (const v of con.vars) deg[v]++;
@@ -224,7 +271,7 @@
       return cacheComponentResult({ kind: "unavailable", reason: "limit", vars: nVars, cons: mCons });
     }
 
-    if (total === 0) return cacheComponentResult({ kind: "contradiction" });
+    if (total === 0) return contradiction();
     for (let v = 0; v < nVars; v++) {
       const { r, c } = vars[v];
       const nv = oldToNew[v];
@@ -301,6 +348,7 @@
     classifyNeighbors,
     collectCandidateWalls,
     validateContradictions,
+    explainJointContradiction,
     computeMineProbabilityForWall,
     computeRecommendations,
   };
