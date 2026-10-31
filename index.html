@@ -64,7 +64,7 @@
     <section class="panel">
       <div class="row">
         <label for="difficulty">難易度</label>
-        <select id="difficulty">
+        <select id="difficulty" autocomplete="off">
           <option value="beginner" selected>初級</option>
           <option value="intermediate">中級</option>
           <option value="advanced">上級</option>
@@ -72,7 +72,7 @@
       </div>
       <div class="row">
         <label for="inputMode">入力モード</label>
-        <select id="inputMode">
+        <select id="inputMode" autocomplete="off">
           <option value="paint" selected>ペイント（ツール＋ドラッグ）</option>
           <option value="cycle">サイクル（クリックで階段→壁→⚑→無地(0)→…）</option>
         </select>
@@ -127,7 +127,7 @@
       <div class="boardSolveRow">
         <button class="primary" id="btnSolve">推論</button>
         <label class="autoSolve" title="ON: クリック時 or ドラッグ終了時に自動で推論します">
-          <input type="checkbox" id="autoSolve" checked />
+          <input type="checkbox" id="autoSolve" autocomplete="off" checked />
           自動推論
         </label>
       </div>
