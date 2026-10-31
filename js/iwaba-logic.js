@@ -36,30 +36,60 @@
     if (idx >= 0) ctx.state.toolCursorIndex = idx;
   }
 
+  function isToolAvailable(ctx, t) {
+    return t.kind !== "stairs" || !hasStairs(ctx);
+  }
+
   function setCurrentTool(ctx, t) {
+    if (!isToolAvailable(ctx, t)) return;
     ctx.state.currentTool = t;
     syncToolCursorFromCurrent(ctx);
     IWABA.view.updateCurrentToolPill(ctx);
     IWABA.view.renderTools(ctx);
   }
 
+  function syncToolAvailability(ctx) {
+    const blocked = hasStairs(ctx);
+    if (blocked === ctx.state.stairsToolBlocked) return;
+    ctx.state.stairsToolBlocked = blocked;
+    if (!isToolAvailable(ctx, ctx.state.currentTool)) setCurrentTool(ctx, ctx.consts.Tool.wall());
+    else IWABA.view.renderTools(ctx);
+  }
+
   function bumpTool(ctx, delta) {
     const { TOOL_DEFS, TOOL_CYCLE_LEN } = ctx.consts;
     const base = findToolIndex(ctx, ctx.state.currentTool);
-    const i = base >= 0 ? base : 0;
-    const idx = (((i + delta) % TOOL_CYCLE_LEN) + TOOL_CYCLE_LEN) % TOOL_CYCLE_LEN;
+    let idx = base >= 0 ? base : 0;
+    for (let step = 0; step < TOOL_CYCLE_LEN; step++) {
+      idx = (((idx + delta) % TOOL_CYCLE_LEN) + TOOL_CYCLE_LEN) % TOOL_CYCLE_LEN;
+      if (isToolAvailable(ctx, TOOL_DEFS[idx].tool)) break;
+    }
     setCurrentTool(ctx, TOOL_DEFS[idx].tool);
   }
 
   function moveToolCursorByArrow(ctx, key) {
+    const { TOOL_DEFS } = ctx.consts;
+    let idx = ctx.state.toolCursorIndex;
+    for (let step = 0; step < TOOL_DEFS.length; step++) {
+      idx = stepToolCursor(ctx, idx, key);
+      if (idx < 0) return;
+      if (isToolAvailable(ctx, TOOL_DEFS[idx].tool)) break;
+    }
+    if (!isToolAvailable(ctx, TOOL_DEFS[idx].tool)) return;
+
+    ctx.state.toolCursorIndex = idx;
+    setCurrentTool(ctx, TOOL_DEFS[idx].tool);
+  }
+
+  function stepToolCursor(ctx, from, key) {
     const { TOOL_DEFS, TOOL_GRID_COLS } = ctx.consts;
 
     const n = TOOL_DEFS.length;
     const cols = TOOL_GRID_COLS;
     const rows = Math.ceil(n / cols);
 
-    let row = Math.floor(ctx.state.toolCursorIndex / cols);
-    let col = ctx.state.toolCursorIndex % cols;
+    let row = Math.floor(from / cols);
+    let col = from % cols;
 
     function rowLen(r) {
       const remain = n - r * cols;
@@ -81,17 +111,14 @@
       const len = rowLen(row);
       if (col >= len) col = len - 1;
     } else {
-      return;
+      return -1;
     }
 
     const len = rowLen(row);
-    if (len <= 0) return;
+    if (len <= 0) return -1;
     if (col >= len) col = len - 1;
 
-    const nidx = row * cols + col;
-
-    ctx.state.toolCursorIndex = nidx;
-    setCurrentTool(ctx, TOOL_DEFS[nidx].tool);
+    return row * cols + col;
   }
 
   function cloneGrid(grid) {
@@ -137,6 +164,7 @@
     if (h.past.length > h.max) h.past.shift();
     h.future = [];
     updateHistoryButtons(ctx);
+    syncToolAvailability(ctx);
   }
 
   function replaceWithSnapshot(ctx, snap) {
@@ -155,6 +183,7 @@
     IWABA.view.renderBoard(ctx);
     IWABA.input.bindCells(ctx);
     IWABA.view.updateModeUI(ctx);
+    syncToolAvailability(ctx);
   }
 
   function clearHistory(ctx) {
@@ -234,6 +263,7 @@
 
     resetAnalysisUI(ctx);
     updateHistoryButtons(ctx);
+    syncToolAvailability(ctx);
   }
 
   function markDirty(ctx) {
@@ -298,7 +328,7 @@
       return true;
     }
     if (tool.kind === "stairs") {
-      if (isSameCellState(st, CellState.STAIRS, 0)) return false;
+      if (hasStairs(ctx)) return false;
       markDirty(ctx);
       setStairs(ctx, r, c);
       return true;
@@ -740,6 +770,7 @@
     toolEquals,
     toolSignature,
     setCurrentTool,
+    isToolAvailable,
     bumpTool,
     moveToolCursorByArrow,
     historySnapshot,

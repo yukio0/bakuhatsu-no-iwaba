@@ -52,6 +52,7 @@
         grid: [],
         currentTool: C.Tool.wall(),
         toolCursorIndex: 0,
+        stairsToolBlocked: false,
         drag: {
           active: false,
           changed: false,

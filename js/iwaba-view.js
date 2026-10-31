@@ -189,6 +189,11 @@
     for (const def of TOOL_DEFS) {
       const btn = makeEl("div", "toolBtn");
       if (IWABA.logic.toolEquals(def.tool, currentTool)) btn.classList.add("active");
+      if (!IWABA.logic.isToolAvailable(ctx, def.tool)) {
+        btn.classList.add("disabled");
+        btn.setAttribute("aria-disabled", "true");
+        btn.title = "階段は1つだけです。今の階段を消すと選べます";
+      }
 
       append(btn, makeToolButtonLabel(ctx, def));
       if (!isMobileLikeDevice()) {
@@ -196,6 +201,7 @@
       }
 
       btn.addEventListener("click", () => {
+        if (!IWABA.logic.isToolAvailable(ctx, def.tool)) return;
         inputModeEl.value = "paint";
         renderStageInfo(ctx);
         updateModeUI(ctx);

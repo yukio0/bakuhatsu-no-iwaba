@@ -544,6 +544,11 @@ html[data-theme="dark"] .num8 {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+.toolBtn.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
 .toolBtn small {
     display: block;
     font-weight: 700;
