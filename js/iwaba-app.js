@@ -44,6 +44,7 @@
         themeToggleEl: document.getElementById("themeToggle"),
       },
       state: {
+        difficulty: "beginner",
         rows: C.STAGES.beginner.size.rows,
         cols: C.STAGES.beginner.size.cols,
         grid: [],

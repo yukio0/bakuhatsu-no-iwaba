@@ -100,6 +100,7 @@
 
   function historySnapshot(ctx) {
     return {
+      difficulty: ctx.state.difficulty,
       rows: ctx.state.rows,
       cols: ctx.state.cols,
       grid: cloneGrid(ctx.state.grid),
@@ -108,6 +109,7 @@
 
   function isSameSnapshot(a, b) {
     if (!a || !b) return false;
+    if (a.difficulty !== b.difficulty) return false;
     if (a.rows !== b.rows || a.cols !== b.cols) return false;
 
     for (let r = 0; r < a.rows; r++) {
@@ -139,6 +141,10 @@
 
   function replaceWithSnapshot(ctx, snap) {
     if (!snap) return;
+    if (snap.difficulty) {
+      ctx.state.difficulty = snap.difficulty;
+      if (ctx.els.difficultyEl) ctx.els.difficultyEl.value = snap.difficulty;
+    }
     ctx.state.rows = snap.rows;
     ctx.state.cols = snap.cols;
     ctx.state.grid = cloneGrid(snap.grid);
@@ -512,8 +518,6 @@
   function refineByProbability(ctx, forcedMines, forcedSafes) {
     const startBudget = performance.now();
     let anyChange = false;
-    // Use one set of assumptions throughout this pass, allowing every wall in
-    // a component to reuse the same complete enumeration.
     const knownMines = new Set(forcedMines);
     const knownSafes = new Set(forcedSafes);
 

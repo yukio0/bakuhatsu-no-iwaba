@@ -47,9 +47,9 @@
     return ctx.els.inputModeEl.value === "cycle";
   }
 
-  function currentStage(ctx) {
+  function currentStageKey(ctx) {
     const { STAGES } = ctx.consts;
-    return STAGES[ctx.els.difficultyEl.value] ?? STAGES.beginner;
+    return STAGES[ctx.els.difficultyEl.value] ? ctx.els.difficultyEl.value : "beginner";
   }
 
   function refreshStageUI(ctx) {
@@ -61,7 +61,9 @@
   }
 
   function applyStageFromUI(ctx) {
-    const stage = currentStage(ctx);
+    const key = currentStageKey(ctx);
+    const stage = ctx.consts.STAGES[key];
+    ctx.state.difficulty = key;
     ctx.state.rows = stage.size.rows;
     ctx.state.cols = stage.size.cols;
 
@@ -415,8 +417,10 @@
   }
 
   function isEditingFieldFocused() {
-    const tag = ((document.activeElement && document.activeElement.tagName) || "").toLowerCase();
-    return tag === "input" || tag === "select" || tag === "textarea";
+    const el = document.activeElement;
+    const tag = ((el && el.tagName) || "").toLowerCase();
+    if (tag === "input") return !["checkbox", "radio", "button"].includes(el.type);
+    return tag === "select" || tag === "textarea";
   }
 
   function handleGlobalToolShortcut(ctx, key) {
@@ -467,8 +471,10 @@
     document.addEventListener("pointerdown", () => hideProbTip(ctx), { capture: true, passive: true });
 
     difficultyEl.addEventListener("change", () => {
+      const snapshot = IWABA.logic.historySnapshot(ctx);
       applyStageFromUI(ctx);
-      IWABA.logic.clearHistory(ctx);
+      IWABA.logic.commitHistorySnapshot(ctx, snapshot);
+      difficultyEl.blur();
     });
 
     inputModeEl.addEventListener("change", () => {
@@ -495,6 +501,11 @@
     if (btnRedo) btnRedo.addEventListener("click", () => runRedo(ctx));
   }
 
+  function releaseStaleFocus() {
+    const el = document.activeElement;
+    if (el && el !== document.body && typeof el.blur === "function") el.blur();
+  }
+
   function bindBoardPointer(ctx, scrollLock) {
     const { boardEl } = ctx.els;
 
@@ -508,6 +519,7 @@
       if (e.button === 2) {
         e.preventDefault();
         if (isCycleMode(ctx)) return;
+        releaseStaleFocus();
         startRightStampDrag(ctx, cell, e, scrollLock);
         return;
       }
@@ -516,6 +528,7 @@
       if (!isPaintMode(ctx)) return;
 
       e.preventDefault();
+      releaseStaleFocus();
       startLeftPointerFlow(ctx, cell, e, scrollLock);
     });
 
@@ -536,7 +549,6 @@
       if (!ctx.state.drag.active) return;
       if (e.pointerId !== ctx.state.drag.pointerId) return;
 
-      // A short tap paints on release; cancellation must not turn into a tap.
       if (e.type === "pointerup" && ctx.state.drag.mode === "leftPending") {
         beginPendingLeftPaintDrag(ctx, e.pointerId);
       }

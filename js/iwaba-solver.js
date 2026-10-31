@@ -51,7 +51,6 @@
   const probabilityCaches = new WeakMap();
 
   function probabilityCache(grid, rows, cols, knownMines, knownSafes) {
-    // Grids and inferred sets are mutated in place; identity alone is not enough.
     const signature = JSON.stringify([
       rows, cols,
       grid.map((row) => row.map((st) => [st.state, st.num])),
@@ -85,9 +84,6 @@
       return idx;
     }
 
-    // Traverse the entire connected component: wall -> clue -> unknown walls.
-    // Disconnected components factor out of the probability because there is
-    // no total-mine-count constraint in this tool.
     addVar(targetR, targetC);
     const constraints = [];
     const seenClues = new Set();
@@ -213,8 +209,6 @@
 
     const res = dfs(0);
     if (res === "abort") {
-      // Partial enumeration is biased; never turn it into a probability or a
-      // certainty. Cache the outcome so other cells do not repeat the search.
       return cacheComponentResult({ kind: "unavailable", reason: "limit", vars: nVars, cons: mCons });
     }
 
@@ -273,7 +267,6 @@
       if (performance.now() - start > 80) return new Set();
       const key = cellKey(wr, wc);
       const res = computeMineProbabilityForWall(grid, rows, cols, wr, wc, knownMines, knownSafes);
-      // A minimum cannot be claimed if any candidate could not be evaluated.
       if (!res || res.kind !== "exact") return new Set();
 
       const p = res.p;
