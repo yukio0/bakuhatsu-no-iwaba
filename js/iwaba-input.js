@@ -8,6 +8,9 @@
   const CELL_LONG_PRESS_MOVE_PX = 10;
   const PAINT_LONG_PRESS_MS = 450;
   const PAINT_LONG_PRESS_MOVE_PX = 10;
+  const WHEEL_STEP_PX = 50;
+  const WHEEL_LINE_PX = 20;
+  const WHEEL_IDLE_MS = 250;
 
   function autoSolveEnabled(ctx) {
     return !!ctx.els.autoSolveEl?.checked;
@@ -589,19 +592,30 @@
   }
 
   function bindWheel(ctx) {
-    window.addEventListener(
+    let acc = 0;
+    let lastAt = -Infinity;
+
+    ctx.els.boardScrollerEl.addEventListener(
       "wheel",
       (e) => {
         if (e.ctrlKey || e.metaKey) return;
         if (!isPaintMode(ctx)) return;
 
+        const mode = e.deltaMode;
         const deltaRaw = ctx.utils.wheelPrimaryDelta(e);
         if (deltaRaw === 0) return;
-
         if (e.cancelable) e.preventDefault();
-        IWABA.logic.bumpTool(ctx, deltaRaw > 0 ? 1 : -1);
+
+        const px = deltaRaw * (mode === 1 ? WHEEL_LINE_PX : mode === 2 ? WHEEL_STEP_PX : 1);
+        if (e.timeStamp - lastAt > WHEEL_IDLE_MS || Math.sign(px) !== Math.sign(acc)) acc = 0;
+        lastAt = e.timeStamp;
+        acc += px;
+        if (Math.abs(acc) < WHEEL_STEP_PX) return;
+
+        IWABA.logic.bumpTool(ctx, acc > 0 ? 1 : -1);
+        acc = 0;
       },
-      { passive: false, capture: true }
+      { passive: false }
     );
   }
 
