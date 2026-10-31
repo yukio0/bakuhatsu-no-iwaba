@@ -50,9 +50,9 @@
 
   const probabilityCaches = new WeakMap();
 
-  function probabilityCache(grid, rows, cols, knownMines, knownSafes) {
+  function probabilityCache(grid, rows, cols, knownMines, knownSafes, mineOdds) {
     const signature = JSON.stringify([
-      rows, cols,
+      rows, cols, mineOdds,
       grid.map((row) => row.map((st) => [st.state, st.num])),
       [...(knownMines || [])].sort(), [...(knownSafes || [])].sort(),
     ]);
@@ -64,13 +64,13 @@
     return cached.results;
   }
 
-  function computeMineProbabilityForWall(grid, rows, cols, targetR, targetC, knownMines, knownSafes) {
+  function computeMineProbabilityForWall(grid, rows, cols, targetR, targetC, knownMines, knownSafes, { mineOdds = 1 } = {}) {
     const targetKey = cellKey(targetR, targetC);
     if (grid[targetR][targetC].state !== CellState.WALL || knownMines?.has(targetKey) || knownSafes?.has(targetKey)) {
       return null;
     }
 
-    const cached = probabilityCache(grid, rows, cols, knownMines, knownSafes);
+    const cached = probabilityCache(grid, rows, cols, knownMines, knownSafes, mineOdds);
     if (cached.has(targetKey)) return cached.get(targetKey);
 
     const varMap = new Map();
@@ -140,6 +140,10 @@
 
     let total = 0;
     const mineCounts = Array(nVars).fill(0);
+    let totalWeight = 0;
+    const mineWeights = Array(nVars).fill(0);
+    const weightByMines = Array.from({ length: nVars + 1 }, (_, k) => mineOdds ** k);
+    let minesAssigned = 0;
     let nodes = 0;
     const start = performance.now();
     const NODE_LIMIT = 300000;
@@ -166,13 +170,19 @@
       }
 
       if (i === nVars) {
+        const w = weightByMines[minesAssigned];
         total++;
-        for (let v = 0; v < nVars; v++) mineCounts[v] += assigned[v];
+        totalWeight += w;
+        for (let v = 0; v < nVars; v++) {
+          mineCounts[v] += assigned[v];
+          if (assigned[v]) mineWeights[v] += w;
+        }
         return;
       }
 
       for (let val = 0; val <= 1; val++) {
         assigned[i] = val;
+        minesAssigned += val;
 
         const touched = varToCons[i];
         for (const j of touched) {
@@ -194,6 +204,7 @@
               sumAssigned[j] -= val;
               cntAssigned[j] -= 1;
             }
+            minesAssigned -= val;
             assigned[i] = -1;
             return "abort";
           }
@@ -203,6 +214,7 @@
           sumAssigned[j] -= val;
           cntAssigned[j] -= 1;
         }
+        minesAssigned -= val;
         assigned[i] = -1;
       }
     }
@@ -215,8 +227,9 @@
     if (total === 0) return cacheComponentResult({ kind: "contradiction" });
     for (let v = 0; v < nVars; v++) {
       const { r, c } = vars[v];
-      const mine = mineCounts[oldToNew[v]];
-      cached.set(cellKey(r, c), { kind: "exact", p: mine / total, total, mine, vars: nVars, cons: mCons });
+      const nv = oldToNew[v];
+      const mine = mineCounts[nv];
+      cached.set(cellKey(r, c), { kind: "exact", p: mineWeights[nv] / totalWeight, total, mine, vars: nVars, cons: mCons });
     }
     return cached.get(targetKey);
   }
@@ -253,7 +266,7 @@
     return cand;
   }
 
-  function computeRecommendations(grid, rows, cols, knownMines, knownSafes) {
+  function computeRecommendations(grid, rows, cols, knownMines, knownSafes, options = {}) {
     if (hasSafeWallOrthAdjacentToAnyRevealed(grid, rows, cols, knownSafes)) return new Set();
 
     const cand = collectCandidateWalls(grid, rows, cols, orthoNeighbors, knownMines, knownSafes);
@@ -266,7 +279,7 @@
     for (const [wr, wc] of cand) {
       if (performance.now() - start > 80) return new Set();
       const key = cellKey(wr, wc);
-      const res = computeMineProbabilityForWall(grid, rows, cols, wr, wc, knownMines, knownSafes);
+      const res = computeMineProbabilityForWall(grid, rows, cols, wr, wc, knownMines, knownSafes, options);
       if (!res || res.kind !== "exact") return new Set();
 
       const p = res.p;

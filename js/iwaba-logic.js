@@ -409,10 +409,15 @@
     return false;
   }
 
+  function probabilityOptions(ctx) {
+    const { STAGES, mineOdds } = ctx.consts;
+    return { mineOdds: mineOdds(STAGES[ctx.state.difficulty] ?? STAGES.beginner) };
+  }
+
   function computeMineProbabilityForWall(ctx, targetR, targetC, knownMines, knownSafes) {
     return ctx.solver.computeMineProbabilityForWall(
       ctx.state.grid, ctx.state.rows, ctx.state.cols,
-      targetR, targetC, knownMines, knownSafes
+      targetR, targetC, knownMines, knownSafes, probabilityOptions(ctx)
     );
   }
 
@@ -577,7 +582,9 @@
 
     const recos = ctx.state.hasContradictionNow
       ? new Set()
-      : ctx.solver.computeRecommendations(ctx.state.grid, ctx.state.rows, ctx.state.cols, forcedMines, forcedSafes);
+      : ctx.solver.computeRecommendations(
+        ctx.state.grid, ctx.state.rows, ctx.state.cols, forcedMines, forcedSafes, probabilityOptions(ctx)
+      );
 
     commitSuggestions(ctx, forcedMines, forcedSafes, recos);
   }

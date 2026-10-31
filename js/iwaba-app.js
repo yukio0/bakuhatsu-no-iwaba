@@ -10,6 +10,7 @@
     return {
       consts: {
         STAGES: C.STAGES,
+        mineOdds: C.mineOdds,
         CellState: C.CellState,
         Tool: C.Tool,
         WALL_CHAR: C.WALL_CHAR,

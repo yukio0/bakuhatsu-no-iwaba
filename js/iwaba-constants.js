@@ -4,10 +4,16 @@
 (() => {
   window.IWABA = window.IWABA || {};
   const STAGES = {
-    beginner: { label: "初級", size: { rows: 6, cols: 9 } },
-    intermediate: { label: "中級", size: { rows: 9, cols: 13 } },
-    advanced: { label: "上級", size: { rows: 12, cols: 19 } },
+    beginner: { label: "初級", size: { rows: 6, cols: 9 }, mines: { min: 5, max: 8 } },
+    intermediate: { label: "中級", size: { rows: 9, cols: 13 }, mines: { min: 16, max: 22 } },
+    advanced: { label: "上級", size: { rows: 12, cols: 19 }, mines: { min: 44, max: 54 } },
   };
+
+  function mineOdds(stage) {
+    const avg = (stage.mines.min + stage.mines.max) / 2;
+    const rho = avg / (stage.size.rows * stage.size.cols - 9);
+    return rho / (1 - rho);
+  }
 
   const CellState = { WALL: "wall", FLAG: "flag", REVEALED: "revealed" };
   const Tool = {
@@ -34,6 +40,7 @@
 
   window.IWABA.constants = {
     STAGES,
+    mineOdds,
     CellState,
     Tool,
     WALL_CHAR,
