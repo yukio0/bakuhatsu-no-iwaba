@@ -107,6 +107,7 @@
 
     window.addEventListener("resize", () => syncResponsive(ctx), { passive: true });
     window.addEventListener("orientationchange", () => syncResponsive(ctx), { passive: true });
+    window.matchMedia?.("(pointer: coarse)")?.addEventListener?.("change", () => syncResponsive(ctx));
 
     scheduleInitialSolve(ctx);
   }

@@ -569,74 +569,72 @@ html[data-theme="dark"] .num8 {
     }
 }
 
-@media (max-width: 820px) {
-    html[data-mobile-ui="1"] .mobilePaintControls {
-        display: block;
-        border: 1px solid var(--toolBtnBorder);
-        background: var(--toolBtnBg);
-        border-radius: 10px;
-        padding: 6px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls {
+    display: block;
+    border: 1px solid var(--toolBtnBorder);
+    background: var(--toolBtnBg);
+    border-radius: 10px;
+    padding: 6px;
+}
 
-    html[data-mobile-ui="1"] .panel .toolboxControls {
-        display: none;
-    }
+html[data-mobile-ui="1"] .panel .toolboxControls {
+    display: none;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .toolMeta {
-        margin-bottom: 6px;
-        justify-content: flex-end;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .toolMeta {
+    margin-bottom: 6px;
+    justify-content: flex-end;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .currentToolPill {
-        width: auto;
-        min-width: 56px;
-        min-height: 24px;
-        justify-content: center;
-        border-radius: 7px;
-        border-color: var(--toolBtnBorder);
-        background: var(--toolBtnBg);
-        color: var(--text);
-        padding: 3px 8px;
-        font-size: 11px;
-        line-height: 1.2;
-        gap: 4px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .currentToolPill {
+    width: auto;
+    min-width: 56px;
+    min-height: 24px;
+    justify-content: center;
+    border-radius: 7px;
+    border-color: var(--toolBtnBorder);
+    background: var(--toolBtnBg);
+    color: var(--text);
+    padding: 3px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+    gap: 4px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .toolGrid {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
-        gap: 4px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .toolGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .toolBtn {
-        padding: 6px 2px;
-        font-size: 11px;
-        border-radius: 8px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .toolBtn {
+    padding: 6px 2px;
+    font-size: 11px;
+    border-radius: 8px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .toolBtn small {
-        margin-top: 1px;
-        font-size: 8px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .toolBtn small {
+    margin-top: 1px;
+    font-size: 8px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .mobileResetBtns {
-        margin-top: 8px;
-        grid-template-columns: 1fr;
-        gap: 6px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .mobileResetBtns {
+    margin-top: 8px;
+    grid-template-columns: 1fr;
+    gap: 6px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .btns {
-        margin-top: 8px;
-        grid-template-columns: 1fr 1fr;
-        gap: 6px;
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .btns {
+    margin-top: 8px;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
 
-    html[data-mobile-ui="1"] .mobilePaintControls .btns button {
-        padding: 8px 6px;
-        font-size: 12px;
-        border-radius: 8px;
-        border-color: var(--toolBtnBorder);
-        background: var(--toolBtnBg);
-    }
+html[data-mobile-ui="1"] .mobilePaintControls .btns button {
+    padding: 8px 6px;
+    font-size: 12px;
+    border-radius: 8px;
+    border-color: var(--toolBtnBorder);
+    background: var(--toolBtnBg);
 }
 
 @media (max-width: 820px) {
