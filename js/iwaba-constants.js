@@ -15,16 +15,20 @@
     return rho / (1 - rho);
   }
 
-  const CellState = { WALL: "wall", FLAG: "flag", REVEALED: "revealed" };
+  const CellState = { WALL: "wall", FLAG: "flag", REVEALED: "revealed", STAIRS: "stairs" };
   const Tool = {
     wall: () => ({ kind: "wall" }),
     flag: () => ({ kind: "flag" }),
     num: (n) => ({ kind: "num", num: n }),
+    stairs: () => ({ kind: "stairs" }),
   };
 
   const WALL_CHAR = "\u58C1"; // "壁"
+  const STAIRS_CHAR = "\u968E"; // "階"
 
   const TOOL_DEFS = [
+    // Stairs come first: rarely used, so kept apart from the number tools.
+    { id: "stairs", label: "階", sub: "S", tool: Tool.stairs() },
     { id: "wall", label: "壁", sub: "W / ?", tool: Tool.wall() },
     { id: "flag", label: "⚑", sub: "F", tool: Tool.flag() },
     { id: "n0", label: " ", sub: "0", tool: Tool.num(0) },
@@ -44,6 +48,7 @@
     CellState,
     Tool,
     WALL_CHAR,
+    STAIRS_CHAR,
     TOOL_DEFS,
     TOOL_GRID_COLS: 6,
     TOOL_CYCLE_LEN: TOOL_DEFS.length,

@@ -209,6 +209,13 @@
         e.stopPropagation();
         hideProbTip(ctx);
         applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.wall());
+        return;
+      }
+      if (key === "s") {
+        e.preventDefault();
+        e.stopPropagation();
+        hideProbTip(ctx);
+        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.stairs());
       }
     });
   }
@@ -437,6 +444,10 @@
     }
     if (key === "w" || key === "?") {
       IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.wall());
+      return true;
+    }
+    if (key === "s") {
+      IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.stairs());
       return true;
     }
     return false;

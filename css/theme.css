@@ -47,6 +47,9 @@
 
     --flagCellBg: #fff2d6;
     --flagCellBorder: #f1c27d;
+    --stairsCellBg: #efe7ff;
+    --stairsCellBorder: #a78bfa;
+    --stairsIcon: #6d28d9;
     --revealedBorder: #93a0b5;
 
     --wallIcon: #0f172a;
@@ -109,6 +112,9 @@ html[data-theme="dark"] {
 
     --flagCellBg: #3a2f1b;
     --flagCellBorder: #6a5430;
+    --stairsCellBg: #2a2342;
+    --stairsCellBorder: #6d5bb0;
+    --stairsIcon: #c4b5fd;
     --revealedBorder: #3a4355;
 
     --wallIcon: #b9c2d3;

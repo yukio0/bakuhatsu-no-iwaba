@@ -210,6 +210,17 @@
     grid[r][c].num = 0;
   }
 
+  function applyDefaultStairs(ctx) {
+    const { CellState } = ctx.consts;
+    const { rows, cols, grid } = ctx.state;
+    if (rows < 2 || cols < 2) return;
+    const r = 1;
+    const c = cols - 2;
+    if (grid[r][c].state !== CellState.WALL) return;
+    grid[r][c].state = CellState.STAIRS;
+    grid[r][c].num = 0;
+  }
+
   function initGrid(ctx) {
     const { CellState } = ctx.consts;
     const { rows, cols } = ctx.state;
@@ -219,6 +230,7 @@
     );
 
     applyStartCellBlank(ctx);
+    applyDefaultStairs(ctx);
 
     resetAnalysisUI(ctx);
     updateHistoryButtons(ctx);
@@ -247,6 +259,24 @@
     st.num = num;
   }
 
+  function setStairs(ctx, r, c) {
+    const { CellState } = ctx.consts;
+    const { grid } = ctx.state;
+    grid.forEach((row, rr) => row.forEach((st, cc) => {
+      if (st.state !== CellState.STAIRS || (rr === r && cc === c)) return;
+      setWall(ctx, st);
+      const el = IWABA.view.getCellEl(ctx, rr, cc);
+      if (el) IWABA.view.setCellVisual(ctx, el, st);
+    }));
+    grid[r][c].state = CellState.STAIRS;
+    grid[r][c].num = 0;
+  }
+
+  function hasStairs(ctx) {
+    const { CellState } = ctx.consts;
+    return ctx.state.grid.some((row) => row.some((st) => st.state === CellState.STAIRS));
+  }
+
   function isSameCellState(st, state, num) {
     return st.state === state && st.num === num;
   }
@@ -265,6 +295,12 @@
       if (isSameCellState(st, CellState.FLAG, 0)) return false;
       markDirty(ctx);
       setFlag(ctx, st);
+      return true;
+    }
+    if (tool.kind === "stairs") {
+      if (isSameCellState(st, CellState.STAIRS, 0)) return false;
+      markDirty(ctx);
+      setStairs(ctx, r, c);
       return true;
     }
     if (isSameCellState(st, CellState.REVEALED, tool.num)) return false;
@@ -286,10 +322,13 @@
       setRevealed(ctx, st, 0);
       return true;
     }
-    if (st.num < 8) st.num++;
-    else {
+    if (st.state === CellState.STAIRS) {
       setWall(ctx, st);
+      return true;
     }
+    if (st.num < 8) st.num++;
+    else if (hasStairs(ctx)) setWall(ctx, st);
+    else setStairs(ctx, r, c);
     return true;
   }
 
@@ -299,6 +338,11 @@
 
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
+      if (hasStairs(ctx)) setRevealed(ctx, st, 8);
+      else setStairs(ctx, r, c);
+      return true;
+    }
+    if (st.state === CellState.STAIRS) {
       setRevealed(ctx, st, 8);
       return true;
     }

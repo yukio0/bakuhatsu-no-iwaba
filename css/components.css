@@ -161,6 +161,11 @@ button.primary {
     background: var(--revealed);
 }
 
+.dot-stairs {
+    background: var(--stairsCellBg);
+    border: 1px solid var(--stairsCellBorder);
+}
+
 .dot-safe {
     background: rgba(42, 111, 58, 0.85);
 }
@@ -333,6 +338,11 @@ html[data-input-mode="paint"] .cell {
     border-color: var(--revealedBorder);
 }
 
+.cell[data-state="stairs"] {
+    background: var(--stairsCellBg);
+    border-color: var(--stairsCellBorder);
+}
+
 html[data-input-mode="cycle"] .cell:focus {
     outline: 3px solid rgba(147, 197, 253, 0.9);
     outline-offset: -2px;
@@ -384,6 +394,16 @@ html[data-input-mode="paint"] .cell.contradiction:focus-visible {
     color: var(--wallIcon);
     font-size: 14px;
     opacity: 1;
+    font-weight: 900;
+    line-height: 1;
+    font-family:
+        "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo",
+        system-ui, sans-serif;
+}
+
+.stairsIcon {
+    color: var(--stairsIcon);
+    font-size: 14px;
     font-weight: 900;
     line-height: 1;
     font-family:
@@ -549,6 +569,7 @@ html[data-theme="dark"] .num8 {
 }
 
 .currentToolPill .wallIcon,
+.currentToolPill .stairsIcon,
 .currentToolPill .flagIcon,
 .currentToolPill .blankIcon,
 .currentToolPill [class^="num"] {

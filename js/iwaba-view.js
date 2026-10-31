@@ -24,10 +24,13 @@
   }
 
   function makeIconSpan(ctx, kind, n = null, extraClass = null) {
-    const { WALL_CHAR } = ctx.consts;
+    const { WALL_CHAR, STAIRS_CHAR } = ctx.consts;
 
     if (kind === "wall") {
       return makeEl("span", extraClass ? `wallIcon ${extraClass}` : "wallIcon", WALL_CHAR);
+    }
+    if (kind === "stairs") {
+      return makeEl("span", extraClass ? `stairsIcon ${extraClass}` : "stairsIcon", STAIRS_CHAR);
     }
     if (kind === "flag") {
       return makeEl("span", extraClass ? `flagIcon ${extraClass}` : "flagIcon", "⚑");
@@ -123,6 +126,10 @@
       cellEl.appendChild(makeIconSpan(ctx, "flag"));
       return;
     }
+    if (cellState.state === CellState.STAIRS) {
+      cellEl.appendChild(makeIconSpan(ctx, "stairs"));
+      return;
+    }
     if (cellState.num === 0) {
       cellEl.appendChild(makeIconSpan(ctx, "blank"));
       return;
@@ -152,6 +159,7 @@
       return tool.num === 0 ? makeEl("span", "blankIcon", "□") : makeIconSpan(ctx, "num", tool.num);
     }
     if (tool.kind === "flag") return makeIconSpan(ctx, "flag");
+    if (tool.kind === "stairs") return makeIconSpan(ctx, "stairs");
     return makeIconSpan(ctx, "wall");
   }
 
@@ -165,6 +173,7 @@
   function makeToolButtonLabel(ctx, def) {
     if (def.id === "wall") return makeIconSpan(ctx, "wall");
     if (def.id === "flag") return makeIconSpan(ctx, "flag");
+    if (def.id === "stairs") return makeIconSpan(ctx, "stairs");
     if (def.id === "n0") return makeEl("span", "blankIcon", "□");
     if (def.id.startsWith("n")) return makeIconSpan(ctx, "num", Number(def.id.slice(1)));
     return makeEl("span", null, def.label);
@@ -256,14 +265,16 @@
     if (inputMode === "cycle") {
       if (isMobile) {
         return [
-          "タップ：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
+          "タップ：タイルを進める（階段→壁→⚑→無地(0)→1→…→8→階段）",
+          "※階段は盤面に階段がないときだけ現れます（移すときは元の階段を先に壁へ）",
           "長押し：地雷確率を表示（周囲に床がある壁マス）",
         ];
       }
       return [
-        "左クリック：タイルを進める（壁→⚑→無地(0)→1→…→8→壁）",
-        "右クリック：タイルを戻す（壁→8→7→6→…→⚑→壁）",
-        "キーボード：0-8で数字入力／Fで⚑／W or ?で壁",
+        "左クリック：タイルを進める（階段→壁→⚑→無地(0)→1→…→8→階段）",
+        "右クリック：タイルを戻す（階段→8→7→…→⚑→壁→階段）",
+        "※階段は盤面に階段がないときだけ現れます（移すときは元の階段を先に壁へ）",
+        "キーボード：0-8で数字入力／Fで⚑／W or ?で壁／Sで階段",
         "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
       ];
     }
@@ -279,7 +290,7 @@
       "左クリック/左ドラッグ：選択タイルで塗る",
       "右クリック/右ドラッグ：壁→⚑→無地(0)→壁→…",
       "ホイール, カーソルキー（↑↓←→）：タイル切替",
-      "キーボード：0-8で床／Fで⚑／W or ?で壁",
+      "キーボード：0-8で床／Fで⚑／W or ?で壁／Sで階段",
       "マウスオーバー：地雷確率を表示（周囲に床がある壁マス）",
     ];
   }
