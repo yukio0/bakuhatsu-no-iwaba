@@ -155,6 +155,10 @@
     }
   }
 
+  function hasCommandModifier(e) {
+    return e.ctrlKey || e.metaKey || e.altKey;
+  }
+
   function bindCellInteractions(ctx, cell) {
     cell.addEventListener("mouseenter", () => IWABA.logic.maybeShowProbTip(ctx, cell));
     cell.addEventListener("mouseleave", () => hideProbTip(ctx));
@@ -188,6 +192,7 @@
     });
 
     cell.addEventListener("keydown", (e) => {
+      if (hasCommandModifier(e)) return;
       const key = e.key.toLowerCase();
 
       if (key >= "0" && key <= "8") {
@@ -614,6 +619,7 @@
         runRedo(ctx);
         return;
       }
+      if (hasCommandModifier(e)) return;
       if (
         isPaintMode(ctx) &&
         (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight")
