@@ -212,6 +212,13 @@
     }
   }
 
+  function toolGridColumns(ctx) {
+    const buttons = Array.from(ctx.els.toolGridEl.children);
+    const first = buttons[0]?.getBoundingClientRect();
+    if (!first || first.width === 0) return ctx.consts.TOOL_GRID_COLS;
+    return buttons.filter((btn) => Math.abs(btn.getBoundingClientRect().top - first.top) < 1).length;
+  }
+
   function updateHistoryButtonLabels(ctx) {
     const { btnUndo, btnRedo } = ctx.els;
     if (!btnUndo || !btnRedo) return;
@@ -514,6 +521,7 @@
     renderAxes,
     updateCurrentToolPill,
     renderTools,
+    toolGridColumns,
     renderStageInfo,
     renderOpsInfo,
     updateHistoryButtonLabels,

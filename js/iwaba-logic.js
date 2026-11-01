@@ -69,9 +69,10 @@
 
   function moveToolCursorByArrow(ctx, key) {
     const { TOOL_DEFS } = ctx.consts;
+    const cols = IWABA.view.toolGridColumns(ctx);
     let idx = ctx.state.toolCursorIndex;
     for (let step = 0; step < TOOL_DEFS.length; step++) {
-      idx = stepToolCursor(ctx, idx, key);
+      idx = stepToolCursor(ctx, idx, key, cols);
       if (idx < 0) return;
       if (isToolAvailable(ctx, TOOL_DEFS[idx].tool)) break;
     }
@@ -81,11 +82,8 @@
     setCurrentTool(ctx, TOOL_DEFS[idx].tool);
   }
 
-  function stepToolCursor(ctx, from, key) {
-    const { TOOL_DEFS, TOOL_GRID_COLS } = ctx.consts;
-
-    const n = TOOL_DEFS.length;
-    const cols = TOOL_GRID_COLS;
+  function stepToolCursor(ctx, from, key, cols) {
+    const n = ctx.consts.TOOL_DEFS.length;
     const rows = Math.ceil(n / cols);
 
     let row = Math.floor(from / cols);
