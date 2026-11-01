@@ -167,6 +167,15 @@
     return e.ctrlKey || e.metaKey || e.altKey;
   }
 
+  function toolForKey(ctx, key) {
+    const { Tool } = ctx.consts;
+    if (/^[0-8]$/.test(key)) return Tool.num(Number(key));
+    if (key === "f") return Tool.flag();
+    if (key === "w" || key === "?") return Tool.wall();
+    if (key === "s") return Tool.stairs();
+    return null;
+  }
+
   function bindCellEvents(ctx) {
     const onCell = (type, handler) => ctx.els.boardEl.addEventListener(type, (e) => {
       const cell = e.target.closest?.(".cell");
@@ -210,35 +219,13 @@
 
     onCell("keydown", (cell, e) => {
       if (hasCommandModifier(e)) return;
-      const key = e.key.toLowerCase();
+      const tool = toolForKey(ctx, e.key.toLowerCase());
+      if (!tool) return;
 
-      if (key >= "0" && key <= "8") {
-        e.preventDefault();
-        e.stopPropagation();
-        hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.num(Number(key)));
-        return;
-      }
-      if (key === "f") {
-        e.preventDefault();
-        e.stopPropagation();
-        hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.flag());
-        return;
-      }
-      if (key === "w" || key === "?") {
-        e.preventDefault();
-        e.stopPropagation();
-        hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.wall());
-        return;
-      }
-      if (key === "s") {
-        e.preventDefault();
-        e.stopPropagation();
-        hideProbTip(ctx);
-        applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.stairs());
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      hideProbTip(ctx);
+      applyToolShortcutToCell(ctx, cell, tool);
     });
   }
 
@@ -450,23 +437,8 @@
     hideProbTip(ctx);
     if (!isPaintMode(ctx)) return;
 
-    if (key >= "0" && key <= "8") {
-      IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.num(Number(key)));
-      return true;
-    }
-    if (key === "f") {
-      IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.flag());
-      return true;
-    }
-    if (key === "w" || key === "?") {
-      IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.wall());
-      return true;
-    }
-    if (key === "s") {
-      IWABA.logic.setCurrentTool(ctx, ctx.consts.Tool.stairs());
-      return true;
-    }
-    return false;
+    const tool = toolForKey(ctx, key);
+    if (tool) IWABA.logic.setCurrentTool(ctx, tool);
   }
 
   function bindThemeToggle(ctx) {
