@@ -870,7 +870,7 @@ html[data-mobile-ui="1"] .mobilePaintControls .btns button {
     margin-top: 10px;
 }
 
-.historyBtns button:disabled {
+button:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }

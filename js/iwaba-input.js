@@ -16,6 +16,12 @@
     return !!ctx.els.autoSolveEl?.checked;
   }
 
+  function syncSolveButton(ctx) {
+    const { btnSolve } = ctx.els;
+    btnSolve.disabled = autoSolveEnabled(ctx);
+    btnSolve.title = btnSolve.disabled ? "自動推論がONのあいだは、入力するたびに自動で推論します" : "";
+  }
+
   function maybeAutoSolve(ctx, { requireChange = false, changed = true } = {}) {
     if (!autoSolveEnabled(ctx)) return;
     if (requireChange && !changed) return;
@@ -478,8 +484,10 @@
 
     window.addEventListener("resize", () => IWABA.view.syncSolveButtonWidth(ctx));
     IWABA.logic.updateHistoryButtons(ctx);
+    syncSolveButton(ctx);
 
     autoSolveEl.addEventListener("change", () => {
+      syncSolveButton(ctx);
       if (autoSolveEnabled(ctx)) IWABA.logic.solveDeterministic(ctx);
     });
 
