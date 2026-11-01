@@ -697,10 +697,6 @@ html[data-mobile-ui="1"] .mobilePaintControls .btns button {
         grid-template-columns: 1fr;
     }
 
-    .toolGrid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-
     .boardScroller {
         padding: 8px;
     }
@@ -717,10 +713,6 @@ html[data-mobile-ui="1"] .mobilePaintControls .btns button {
 
     .wrap {
         padding: 10px 12px;
-    }
-
-    .toolGrid {
-        grid-template-columns: repeat(3, 1fr);
     }
 }
 

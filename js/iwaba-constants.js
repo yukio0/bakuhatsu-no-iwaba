@@ -27,18 +27,18 @@
   const STAIRS_CHAR = "\u968E"; // "階"
 
   const TOOL_DEFS = [
-    { id: "stairs", label: "階", sub: "S", tool: Tool.stairs() },
-    { id: "wall", label: "壁", sub: "W / ?", tool: Tool.wall() },
-    { id: "flag", label: "⚑", sub: "F", tool: Tool.flag() },
-    { id: "n0", label: " ", sub: "0", tool: Tool.num(0) },
-    { id: "n1", label: "1", sub: "1", tool: Tool.num(1) },
-    { id: "n2", label: "2", sub: "2", tool: Tool.num(2) },
-    { id: "n3", label: "3", sub: "3", tool: Tool.num(3) },
-    { id: "n4", label: "4", sub: "4", tool: Tool.num(4) },
-    { id: "n5", label: "5", sub: "5", tool: Tool.num(5) },
-    { id: "n6", label: "6", sub: "6", tool: Tool.num(6) },
-    { id: "n7", label: "7", sub: "7", tool: Tool.num(7) },
-    { id: "n8", label: "8", sub: "8", tool: Tool.num(8) },
+    { id: "stairs", sub: "S", tool: Tool.stairs() },
+    { id: "wall", sub: "W / ?", tool: Tool.wall() },
+    { id: "flag", sub: "F", tool: Tool.flag() },
+    { id: "n0", sub: "0", tool: Tool.num(0) },
+    { id: "n1", sub: "1", tool: Tool.num(1) },
+    { id: "n2", sub: "2", tool: Tool.num(2) },
+    { id: "n3", sub: "3", tool: Tool.num(3) },
+    { id: "n4", sub: "4", tool: Tool.num(4) },
+    { id: "n5", sub: "5", tool: Tool.num(5) },
+    { id: "n6", sub: "6", tool: Tool.num(6) },
+    { id: "n7", sub: "7", tool: Tool.num(7) },
+    { id: "n8", sub: "8", tool: Tool.num(8) },
   ];
 
   window.IWABA.constants = {
@@ -50,6 +50,5 @@
     STAIRS_CHAR,
     TOOL_DEFS,
     TOOL_GRID_COLS: 6,
-    TOOL_CYCLE_LEN: TOOL_DEFS.length,
   };
 })();

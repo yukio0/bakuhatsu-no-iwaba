@@ -154,7 +154,7 @@
     }
   }
 
-  function makeCurrentToolNode(ctx, tool) {
+  function makeToolIcon(ctx, tool) {
     if (tool.kind === "num") {
       return tool.num === 0 ? makeEl("span", "blankIcon", "□") : makeIconSpan(ctx, "num", tool.num);
     }
@@ -167,16 +167,7 @@
     const { currentToolPillEl } = ctx.els;
     clearEl(currentToolPillEl);
     currentToolPillEl.appendChild(document.createTextNode("現在："));
-    currentToolPillEl.appendChild(makeCurrentToolNode(ctx, ctx.state.currentTool));
-  }
-
-  function makeToolButtonLabel(ctx, def) {
-    if (def.id === "wall") return makeIconSpan(ctx, "wall");
-    if (def.id === "flag") return makeIconSpan(ctx, "flag");
-    if (def.id === "stairs") return makeIconSpan(ctx, "stairs");
-    if (def.id === "n0") return makeEl("span", "blankIcon", "□");
-    if (def.id.startsWith("n")) return makeIconSpan(ctx, "num", Number(def.id.slice(1)));
-    return makeEl("span", null, def.label);
+    currentToolPillEl.appendChild(makeToolIcon(ctx, ctx.state.currentTool));
   }
 
   function renderTools(ctx) {
@@ -195,7 +186,7 @@
         btn.title = "階段は1つだけです。今の階段を消すと選べます";
       }
 
-      append(btn, makeToolButtonLabel(ctx, def));
+      append(btn, makeToolIcon(ctx, def.tool));
       if (!isMobileLikeDevice()) {
         btn.appendChild(makeEl("small", null, def.sub));
       }

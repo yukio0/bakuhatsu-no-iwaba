@@ -7,9 +7,6 @@
   function neighbors(ctx, r, c) {
     return ctx.utils.neighbors(r, c, ctx.state.rows, ctx.state.cols);
   }
-  function orthoNeighbors(ctx, r, c) {
-    return ctx.utils.orthoNeighbors(r, c, ctx.state.rows, ctx.state.cols);
-  }
   function cellCoord(ctx, r, c) {
     return ctx.utils.cellCoord(r, c, ctx.state.rows);
   }
@@ -57,11 +54,12 @@
   }
 
   function bumpTool(ctx, delta) {
-    const { TOOL_DEFS, TOOL_CYCLE_LEN } = ctx.consts;
+    const { TOOL_DEFS } = ctx.consts;
+    const n = TOOL_DEFS.length;
     const base = findToolIndex(ctx, ctx.state.currentTool);
     let idx = base >= 0 ? base : 0;
-    for (let step = 0; step < TOOL_CYCLE_LEN; step++) {
-      idx = (((idx + delta) % TOOL_CYCLE_LEN) + TOOL_CYCLE_LEN) % TOOL_CYCLE_LEN;
+    for (let step = 0; step < n; step++) {
+      idx = (((idx + delta) % n) + n) % n;
       if (isToolAvailable(ctx, TOOL_DEFS[idx].tool)) break;
     }
     setCurrentTool(ctx, TOOL_DEFS[idx].tool);
@@ -111,10 +109,6 @@
     } else {
       return -1;
     }
-
-    const len = rowLen(row);
-    if (len <= 0) return -1;
-    if (col >= len) col = len - 1;
 
     return row * cols + col;
   }
@@ -286,17 +280,10 @@
     st.num = num;
   }
 
-  function setStairs(ctx, r, c) {
+  function setStairs(ctx, st) {
     const { CellState } = ctx.consts;
-    const { grid } = ctx.state;
-    grid.forEach((row, rr) => row.forEach((st, cc) => {
-      if (st.state !== CellState.STAIRS || (rr === r && cc === c)) return;
-      setWall(ctx, st);
-      const el = IWABA.view.getCellEl(ctx, rr, cc);
-      if (el) IWABA.view.setCellVisual(ctx, el, st);
-    }));
-    grid[r][c].state = CellState.STAIRS;
-    grid[r][c].num = 0;
+    st.state = CellState.STAIRS;
+    st.num = 0;
   }
 
   function hasStairs(ctx) {
@@ -327,7 +314,7 @@
     if (tool.kind === "stairs") {
       if (hasStairs(ctx)) return false;
       markDirty(ctx);
-      setStairs(ctx, r, c);
+      setStairs(ctx, st);
       return true;
     }
     if (isSameCellState(st, CellState.REVEALED, tool.num)) return false;
@@ -355,7 +342,7 @@
     }
     if (st.num < 8) st.num++;
     else if (hasStairs(ctx)) setWall(ctx, st);
-    else setStairs(ctx, r, c);
+    else setStairs(ctx, st);
     return true;
   }
 
@@ -366,7 +353,7 @@
     const st = ctx.state.grid[r][c];
     if (st.state === CellState.WALL) {
       if (hasStairs(ctx)) setRevealed(ctx, st, 8);
-      else setStairs(ctx, r, c);
+      else setStairs(ctx, st);
       return true;
     }
     if (st.state === CellState.STAIRS) {
@@ -762,7 +749,6 @@
 
   IWABA.logic = {
     neighbors,
-    orthoNeighbors,
     cellCoord,
     toolEquals,
     toolSignature,

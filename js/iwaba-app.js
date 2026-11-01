@@ -17,7 +17,6 @@
         STAIRS_CHAR: C.STAIRS_CHAR,
         TOOL_DEFS: C.TOOL_DEFS,
         TOOL_GRID_COLS: C.TOOL_GRID_COLS,
-        TOOL_CYCLE_LEN: C.TOOL_CYCLE_LEN,
       },
       utils: IWABA.utils,
       solver: IWABA.solver,
