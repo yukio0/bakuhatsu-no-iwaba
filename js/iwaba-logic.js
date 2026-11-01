@@ -179,7 +179,6 @@
 
     IWABA.view.renderStageInfo(ctx);
     IWABA.view.renderBoard(ctx);
-    IWABA.input.bindCells(ctx);
     IWABA.view.updateModeUI(ctx);
     syncToolAvailability(ctx);
   }

@@ -59,7 +59,6 @@
     IWABA.view.renderStageInfo(ctx);
     IWABA.view.renderTools(ctx);
     IWABA.view.renderBoard(ctx);
-    bindCells(ctx);
     IWABA.view.updateModeUI(ctx);
   }
 
@@ -162,16 +161,25 @@
     return e.ctrlKey || e.metaKey || e.altKey;
   }
 
-  function bindCellInteractions(ctx, cell) {
-    cell.addEventListener("mouseenter", () => IWABA.logic.maybeShowProbTip(ctx, cell));
-    cell.addEventListener("mouseleave", () => hideProbTip(ctx));
+  function bindCellEvents(ctx) {
+    const onCell = (type, handler) => ctx.els.boardEl.addEventListener(type, (e) => {
+      const cell = e.target.closest?.(".cell");
+      if (cell) handler(cell, e);
+    });
 
-    cell.addEventListener("pointerdown", (e) => startCellProbLongPress(ctx, cell, e));
-    cell.addEventListener("pointermove", (e) => maybeCancelCellProbLongPress(cell, e));
-    cell.addEventListener("pointerup", () => clearCellLongPress(cell));
-    cell.addEventListener("pointercancel", () => clearCellLongPress(cell));
+    onCell("mouseover", (cell, e) => {
+      if (!cell.contains(e.relatedTarget)) IWABA.logic.maybeShowProbTip(ctx, cell);
+    });
+    onCell("mouseout", (cell, e) => {
+      if (!cell.contains(e.relatedTarget)) hideProbTip(ctx);
+    });
 
-    cell.addEventListener("click", (e) => {
+    onCell("pointerdown", (cell, e) => startCellProbLongPress(ctx, cell, e));
+    onCell("pointermove", (cell, e) => maybeCancelCellProbLongPress(cell, e));
+    onCell("pointerup", (cell) => clearCellLongPress(cell));
+    onCell("pointercancel", (cell) => clearCellLongPress(cell));
+
+    onCell("click", (cell, e) => {
       if (!isCycleMode(ctx)) return;
       e.preventDefault();
       if (consumeCellLongPressProb(cell)) return;
@@ -182,7 +190,7 @@
       );
     });
 
-    cell.addEventListener("contextmenu", (e) => {
+    onCell("contextmenu", (cell, e) => {
       e.preventDefault();
       if (!isCycleMode(ctx)) return;
       if (consumeCellLongPressProb(cell)) return;
@@ -194,7 +202,7 @@
       );
     });
 
-    cell.addEventListener("keydown", (e) => {
+    onCell("keydown", (cell, e) => {
       if (hasCommandModifier(e)) return;
       const key = e.key.toLowerCase();
 
@@ -226,12 +234,6 @@
         applyToolShortcutToCell(ctx, cell, ctx.consts.Tool.stairs());
       }
     });
-  }
-
-  function bindCells(ctx) {
-    for (const cell of ctx.els.boardEl.querySelectorAll(".cell")) {
-      bindCellInteractions(ctx, cell);
-    }
   }
 
   function makeScrollLockController(boardScrollerEl) {
@@ -512,7 +514,6 @@
 
       IWABA.logic.clearHints(ctx);
       IWABA.view.renderBoard(ctx);
-      bindCells(ctx);
       maybeAutoSolve(ctx);
     });
 
@@ -652,12 +653,11 @@
 
     bindThemeToggle(ctx);
     bindControls(ctx);
+    bindCellEvents(ctx);
     bindBoardPointer(ctx, scrollLock);
     bindWheel(ctx);
     bindKeyboard(ctx);
-
-    bindCells(ctx);
   }
 
-  IWABA.input = { bind, applyStageFromUI, bindCells };
+  IWABA.input = { bind, applyStageFromUI };
 })();
