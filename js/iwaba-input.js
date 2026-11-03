@@ -28,14 +28,18 @@
     IWABA.logic.solveDeterministic(ctx);
   }
 
-  function runUndo(ctx) {
+  function runUndo(ctx, finishDrag) {
+    const dragChanged = finishDrag();
+    hideProbTip(ctx);
     const changed = IWABA.logic.undo(ctx);
-    if (changed) maybeAutoSolve(ctx);
+    if (changed || dragChanged) maybeAutoSolve(ctx);
   }
 
-  function runRedo(ctx) {
+  function runRedo(ctx, finishDrag) {
+    const dragChanged = finishDrag();
+    hideProbTip(ctx);
     const changed = IWABA.logic.redo(ctx);
-    if (changed) maybeAutoSolve(ctx);
+    if (changed || dragChanged) maybeAutoSolve(ctx);
   }
 
   function setDarkMode(ctx, on) {
@@ -99,11 +103,15 @@
     IWABA.view.hideProbTip(ctx);
   }
 
-  function commitSingleCellChange(ctx, cell, changeFn) {
+  function commitSingleCellChange(ctx, cell, changeFn, finishDrag) {
+    const dragChanged = finishDrag();
     const { r, c } = getCellPosition(cell);
     const snapshot = IWABA.logic.historySnapshot(ctx);
     const changed = changeFn(r, c);
-    if (!changed) return false;
+    if (!changed) {
+      if (dragChanged) maybeAutoSolve(ctx);
+      return false;
+    }
 
     IWABA.logic.commitHistorySnapshot(ctx, snapshot);
     IWABA.view.setCellVisual(ctx, cell, ctx.state.grid[r][c]);
@@ -111,9 +119,9 @@
     return true;
   }
 
-  function applyToolShortcutToCell(ctx, cell, tool) {
+  function applyToolShortcutToCell(ctx, cell, tool, finishDrag) {
     commitSingleCellChange(ctx, cell, (r, c) =>
-      IWABA.logic.applyTool(ctx, r, c, tool)
+      IWABA.logic.applyTool(ctx, r, c, tool), finishDrag
     );
   }
 
@@ -176,7 +184,7 @@
     return null;
   }
 
-  function bindCellEvents(ctx) {
+  function bindCellEvents(ctx, finishDrag) {
     const onCell = (type, handler) => ctx.els.boardEl.addEventListener(type, (e) => {
       const cell = e.target.closest?.(".cell");
       if (cell) handler(cell, e);
@@ -201,7 +209,7 @@
 
       hideProbTip(ctx);
       commitSingleCellChange(ctx, cell, (r, c) =>
-        IWABA.logic.cycleCell(ctx, r, c)
+        IWABA.logic.cycleCell(ctx, r, c), finishDrag
       );
     });
 
@@ -213,7 +221,7 @@
 
       hideProbTip(ctx);
       commitSingleCellChange(ctx, cell, (r, c) =>
-        IWABA.logic.cycleCellBackward(ctx, r, c)
+        IWABA.logic.cycleCellBackward(ctx, r, c), finishDrag
       );
     });
 
@@ -225,7 +233,7 @@
       e.preventDefault();
       e.stopPropagation();
       hideProbTip(ctx);
-      applyToolShortcutToCell(ctx, cell, tool);
+      applyToolShortcutToCell(ctx, cell, tool, finishDrag);
     });
   }
 
@@ -426,6 +434,29 @@
     clearPendingPaintLongPress(ctx);
   }
 
+  function makeDragFinisher(ctx, scrollLock) {
+    return function finishDrag({ paintPendingTap = false } = {}) {
+      if (!ctx.state.drag.active) return false;
+
+      const pointerId = ctx.state.drag.pointerId;
+      if (paintPendingTap && ctx.state.drag.mode === "leftPending") {
+        beginPendingLeftPaintDrag(ctx, pointerId);
+      }
+
+      const changed = ctx.state.drag.changed;
+      const snapshot = ctx.state.drag.historySnapshot;
+      resetDragState(ctx);
+      scrollLock.set(false);
+      try {
+        ctx.els.boardEl.releasePointerCapture(pointerId);
+      } catch {
+      }
+
+      if (changed && snapshot) IWABA.logic.commitHistorySnapshot(ctx, snapshot);
+      return changed;
+    };
+  }
+
   function isEditingFieldFocused() {
     const el = document.activeElement;
     const tag = ((el && el.tagName) || "").toLowerCase();
@@ -451,7 +482,7 @@
     });
   }
 
-  function bindControls(ctx) {
+  function bindControls(ctx, finishDrag) {
     const { difficultyEl, inputModeEl, btnSolve, btnReset, btnUndo, btnRedo, autoSolveEl, toastEl, boardScrollerEl } = ctx.els;
 
     window.addEventListener("resize", () => IWABA.view.syncSolveButtonWidth(ctx));
@@ -459,6 +490,7 @@
     syncSolveButton(ctx);
 
     autoSolveEl.addEventListener("change", () => {
+      finishDrag();
       syncSolveButton(ctx);
       if (autoSolveEnabled(ctx)) IWABA.logic.solveDeterministic(ctx);
     });
@@ -472,6 +504,7 @@
     document.addEventListener("pointerdown", () => hideProbTip(ctx), { capture: true, passive: true });
 
     difficultyEl.addEventListener("change", () => {
+      finishDrag();
       const snapshot = IWABA.logic.historySnapshot(ctx);
       applyStageFromUI(ctx);
       IWABA.logic.commitHistorySnapshot(ctx, snapshot);
@@ -479,14 +512,20 @@
     });
 
     inputModeEl.addEventListener("change", () => {
+      const changed = finishDrag();
       IWABA.view.renderStageInfo(ctx);
       IWABA.view.updateModeUI(ctx);
       hideProbTip(ctx);
+      maybeAutoSolve(ctx, { requireChange: true, changed });
     });
 
-    btnSolve.addEventListener("click", () => IWABA.logic.solveDeterministic(ctx));
+    btnSolve.addEventListener("click", () => {
+      finishDrag();
+      IWABA.logic.solveDeterministic(ctx);
+    });
 
     btnReset.addEventListener("click", () => {
+      finishDrag();
       const snapshot = IWABA.logic.historySnapshot(ctx);
       IWABA.logic.initGrid(ctx);
       const changed = !IWABA.logic.isSameSnapshot(snapshot, IWABA.logic.historySnapshot(ctx));
@@ -497,8 +536,8 @@
       maybeAutoSolve(ctx);
     });
 
-    if (btnUndo) btnUndo.addEventListener("click", () => runUndo(ctx));
-    if (btnRedo) btnRedo.addEventListener("click", () => runRedo(ctx));
+    if (btnUndo) btnUndo.addEventListener("click", () => runUndo(ctx, finishDrag));
+    if (btnRedo) btnRedo.addEventListener("click", () => runRedo(ctx, finishDrag));
   }
 
   function releaseStaleFocus() {
@@ -506,12 +545,16 @@
     if (el && el !== document.body && typeof el.blur === "function") el.blur();
   }
 
-  function bindBoardPointer(ctx, scrollLock) {
+  function bindBoardPointer(ctx, scrollLock, finishDrag) {
     const { boardEl } = ctx.els;
 
     boardEl.addEventListener("contextmenu", (e) => e.preventDefault());
 
     boardEl.addEventListener("pointerdown", (e) => {
+      if (ctx.state.drag.active) {
+        if (e.cancelable) e.preventDefault();
+        return;
+      }
       hideProbTip(ctx);
       const cell = e.target.closest?.(".cell");
       if (!cell) return;
@@ -549,27 +592,13 @@
       if (!ctx.state.drag.active) return;
       if (e.pointerId !== ctx.state.drag.pointerId) return;
 
-      if (e.type === "pointerup" && ctx.state.drag.mode === "leftPending") {
-        beginPendingLeftPaintDrag(ctx, e.pointerId);
-      }
-
-      const changed = ctx.state.drag.changed;
-      const snapshot = ctx.state.drag.historySnapshot;
-      if (changed && snapshot) IWABA.logic.commitHistorySnapshot(ctx, snapshot);
-
-      resetDragState(ctx);
-      scrollLock.set(false);
-
-      try {
-        boardEl.releasePointerCapture(e.pointerId);
-      } catch {
-      }
-
+      const changed = finishDrag({ paintPendingTap: e.type === "pointerup" });
       maybeAutoSolve(ctx, { requireChange: true, changed });
     }
 
     boardEl.addEventListener("pointerup", endDrag);
     boardEl.addEventListener("pointercancel", endDrag);
+    boardEl.addEventListener("lostpointercapture", endDrag);
   }
 
   function bindWheel(ctx) {
@@ -600,18 +629,18 @@
     );
   }
 
-  function bindKeyboard(ctx) {
+  function bindKeyboard(ctx, finishDrag) {
     document.addEventListener("keydown", (e) => {
       if (isEditingFieldFocused()) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
-        runUndo(ctx);
+        runUndo(ctx, finishDrag);
         return;
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) {
         e.preventDefault();
-        runRedo(ctx);
+        runRedo(ctx, finishDrag);
         return;
       }
       if (hasCommandModifier(e)) return;
@@ -630,13 +659,14 @@
 
   function bind(ctx) {
     const scrollLock = makeScrollLockController(ctx.els.boardScrollerEl);
+    const finishDrag = makeDragFinisher(ctx, scrollLock);
 
     bindThemeToggle(ctx);
-    bindControls(ctx);
-    bindCellEvents(ctx);
-    bindBoardPointer(ctx, scrollLock);
+    bindControls(ctx, finishDrag);
+    bindCellEvents(ctx, finishDrag);
+    bindBoardPointer(ctx, scrollLock, finishDrag);
     bindWheel(ctx);
-    bindKeyboard(ctx);
+    bindKeyboard(ctx, finishDrag);
   }
 
   IWABA.input = { bind, applyStageFromUI };
